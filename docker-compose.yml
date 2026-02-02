@@ -1,0 +1,17 @@
+
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: clinic-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: clinic_db
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/migrations:/docker-entrypoint-initdb.d
+
+volumes:
+  mysql_data:
