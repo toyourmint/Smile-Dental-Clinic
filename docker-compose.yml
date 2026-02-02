@@ -13,5 +13,22 @@ services:
       - mysql_data:/var/lib/mysql
       - ./database/migrations:/docker-entrypoint-initdb.d
 
+  backend:
+    build: ./backend
+    container_name: clinic-backend
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: clinic_db
+    depends_on:
+      - db
+
+
 volumes:
   mysql_data:
