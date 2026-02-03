@@ -16,8 +16,8 @@ const dbConfig = {
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: '67010253@kmitl.ac.th', // อีเมลคุณ
-        pass: 'xxxx xxxx xxxx xxxx'   // App Password
+        user: 'napapat0564@gmail.com', // อีเมลคุณ
+        pass: 'ihrn ofsh vaox qiun'   // App Password
     }
 });
 
@@ -86,12 +86,13 @@ exports.sendOtp = async (req, res) => {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 นาที
 
     try {
-        const connection = await mysql.createConnection(dbConfig);
-        await connection.execute(
-            'INSERT INTO otps (email, otp_code, expires_at) VALUES (?, ?, ?)',
-            [email, otp, expiresAt]
-        );
-        await connection.end();
+        // const connection = await mysql.createConnection(dbConfig);
+        // await connection.execute(
+        //     'INSERT INTO otps (email, otp_code, expires_at) VALUES (?, ?, ?)',
+        //     [email, otp, expiresAt]
+        // );
+        // await connection.end();
+        console.log(`[TEST MODE] OTP for ${email} is: ${otp}`);
 
         await transporter.sendMail({
             from: 'Smile Dental Admin',
