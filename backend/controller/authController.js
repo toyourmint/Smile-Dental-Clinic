@@ -10,6 +10,7 @@ const nodemailer = require('nodemailer');
 // --- ตั้งค่า Database และ Email (ควรแยกไฟล์ Config แต่ใส่ตรงนี้ก่อนได้ครับ) ---
 const dbConfig = {
     host: 'localhost',
+    port: 3307,
     user: 'root',
     password: 'root',
     database: 'clinic_db' // เปลี่ยนเป็นชื่อ DB ของคุณ
@@ -94,6 +95,7 @@ exports.login = async (req, res) => {
         // 2. ตรวจสอบรหัสผ่าน
         // เปลี่ยน user.PasswordHash เป็น user.password ตามชื่อคอลัมน์ใน DB
         const isMatch = await bcrypt.compare(password, user.password);
+        // const isMatch = await bcrypt.compare(password, user.PasswordHash || user.password);
 
         if (!isMatch) {
             return res.status(401).json({ message: "รหัสผ่านไม่ถูกต้อง" });
@@ -107,9 +109,9 @@ exports.login = async (req, res) => {
                 userId: user.id,      // ตรงกับ user.id ใน DB
                 email: user.email,
                 role: user.role
-            }
-            // secretKey,
-            // { expiresIn: "8h" }
+            },
+            secretKey,
+            { expiresIn: "8h" }
         );
         
         return res.status(200).json({ 
