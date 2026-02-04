@@ -89,7 +89,7 @@ exports.register = async (req, res) => {
         await transporter.sendMail({
             from: 'Smile Dental Admin',
             to: email,
-            subject: 'รหัส OTP สำหรับลงทะเบียน',
+            subject: 'รหัส OTP สำหรับลงทะเบียนบัญชีผู้ใช้ Smile Dental Clinic',
             html: `รหัส OTP คือ: <b>${otp}</b>`
         });
 
@@ -165,49 +165,67 @@ exports.login = async (req, res) => {
         return res.status(500).json({ message: "เกิดข้อผิดพลาดในการเข้าสู่ระบบ" });
     }
 };
-//     const { email } = req.body;
-//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-//     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 นาที
 
-//     try {
-//         const connection = await mysql.createConnection(dbConfig);
+// --- ฟังก์ชันสำหรับ "ลืมรหัสผ่าน" (Forgot Password) ---
+exports.requestPasswordReset = async (req, res) => {
+    const { email } = req.body;
 
-//         // 1. หา User ID จาก Email
-//         const [users] = await connection.execute(
-//             'SELECT id FROM users WHERE email = ?',
-//             [email]
-//         );
+    if (!email) {
+        return res.status(400).json({ message: 'กรุณากรอกอีเมล' });
+    }
 
-//         if (users.length === 0) {
-//             await connection.end();
-//             return res.status(404).json({ message: 'ไม่พบอีเมลนี้ในระบบ' });
-//         }
+    try {
+        const connection = await mysql.createConnection(dbConfig);
 
-//         const userId = users[0].id;
-
-//         // 2. บันทึกลงตาราง user_otps
-//         await connection.execute(
-//             'INSERT INTO user_otps (user_id, otp_code, expires_at, is_used) VALUES (?, ?, ?, 0)',
-//             [userId, otp, expiresAt]
-//         );
+        // 1. เช็คว่ามีอีเมลนี้ในระบบจริงไหม
+        const [users] = await connection.execute('SELECT id FROM users WHERE email = ?', [email]);
         
-//         await connection.end();
+        if (users.length === 0) {
+            await connection.end();
+            // เพื่อความปลอดภัย บางระบบอาจจะตอบว่า "ส่งเมลแล้ว" แม้ไม่มี User เพื่อกัน Hacker สุ่มเมล
+            // แต่สำหรับตอนนี้ตอบตรงๆ ไปก่อนครับ
+            return res.status(404).json({ message: 'ไม่พบอีเมลนี้ในระบบ' });
+        }
 
-//         // 3. ส่ง Email
-//         await transporter.sendMail({
-//             from: 'Smile Dental Admin',
-//             to: email,
-//             subject: 'รหัส OTP ของคุณ',
-//             html: `รหัส OTP คือ: <b>${otp}</b> (หมดอายุใน 5 นาที)`
-//         });
+        const userId = users[0].id;
 
-//         res.json({ message: 'ส่ง OTP แล้ว' });
+        // 2. สร้าง OTP ใหม่
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 นาที
 
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ message: 'ส่ง OTP ไม่สำเร็จ', error: error.message });
-//     }
-// };
+        // 3. ยกเลิก OTP เก่าที่ยังไม่ใช้ (Clear ของเก่าทิ้ง)
+        await connection.execute(
+            'UPDATE user_otps SET is_used = 1 WHERE user_id = ? AND is_used = 0',
+            [userId]
+        );
+
+        // 4. บันทึก OTP ใหม่
+        await connection.execute(
+            'INSERT INTO user_otps (user_id, otp_code, expires_at, is_used) VALUES (?, ?, ?, 0)',
+            [userId, otp, expiresAt]
+        );
+
+        await connection.end();
+
+        // 5. ส่ง Email (เปลี่ยนหัวข้อเมลนิดหน่อย)
+        await transporter.sendMail({
+            from: 'Smile Dental Admin',
+            to: email,
+            subject: 'แจ้งรหัส OTP สำหรับตั้งรหัสผ่านใหม่ Smile Dental Clinic', // เปลี่ยนหัวข้อ
+            html: `
+                <h3>คุณได้ทำการแจ้งลืมรหัสผ่าน</h3>
+                <p>รหัส OTP ของคุณคือ: <b>${otp}</b></p>
+                <p>(รหัสมีอายุ 5 นาที)</p>
+            `
+        });
+
+        res.json({ message: 'ส่ง OTP ไปยังอีเมลเรียบร้อยแล้ว' });
+
+    } catch (error) {
+        console.error('Forgot Password Error:', error);
+        res.status(500).json({ message: 'เกิดข้อผิดพลาดในการส่ง OTP' });
+    }
+};
 
 exports.verifyOtp = async (req, res) => {
     const { email, otp } = req.body;
@@ -283,7 +301,7 @@ exports.resendOtp = async (req, res) => {
         await transporter.sendMail({
             from: 'Smile Dental Admin',
             to: email,
-            subject: 'รหัส OTP ใหม่ของคุณ (Resend)',
+            subject: 'รหัส OTP ใหม่ของคุณ (Resend) สำหรับ Smile Dental Clinic',
             html: `รหัส OTP ใหม่คือ: <b>${otp}</b> (หมดอายุใน 5 นาที)`
         });
 
