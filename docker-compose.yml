@@ -1,5 +1,3 @@
-
-
 services:
   db:
     image: mysql:8.0
@@ -16,19 +14,16 @@ services:
   backend:
     build: ./backend
     container_name: clinic-backend
-    command: npm run dev
     ports:
       - "3000:3000"
-    volumes:
-      - ./backend:/app
     environment:
       DB_HOST: db
+      DB_PORT: 3306
       DB_USER: root
       DB_PASSWORD: root
       DB_NAME: clinic_db
     depends_on:
       - db
-
 
 volumes:
   mysql_data:
