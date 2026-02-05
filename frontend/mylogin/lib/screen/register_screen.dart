@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../services/auth_service.dart';
 import 'otp_screen.dart';
 import 'login_screen.dart';
-import '../services/auth_service.dart';
-
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -15,59 +15,121 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
-  // ================= CONTROLLERS =================
-  final citizenIdCtrl = TextEditingController();
-  final titleCtrl = TextEditingController();
-  final firstNameCtrl = TextEditingController();
-  final lastNameCtrl = TextEditingController();
-  final genderCtrl = TextEditingController();
-  final birthDateCtrl = TextEditingController();
-  final phoneCtrl = TextEditingController();
-  final emailCtrl = TextEditingController();
-  final addressCtrl = TextEditingController();
-  final subdistrictCtrl = TextEditingController();
-  final districtCtrl = TextEditingController();
-  final provinceCtrl = TextEditingController();
-  final postalCodeCtrl = TextEditingController();
+  /// Controllers
+  final idCard = TextEditingController();
+  final firstName = TextEditingController();
+  final lastName = TextEditingController();
+  final birthDate = TextEditingController();
+  final phone = TextEditingController();
+  final email = TextEditingController();
+  final address = TextEditingController();
+  final subDistrict = TextEditingController();
+  final district = TextEditingController();
+  final province = TextEditingController();
+  final zip = TextEditingController();
 
-  Widget buildField(String label, TextEditingController controller) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: TextFormField(
-      controller: controller, // 🔥 สำคัญมาก
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
+  String? title;
+  String? gender;
+
+  final thaiRegex = RegExp(r'^[ก-๙\s]+$');
+
+  /// =========================
+  /// buildField
+  /// =========================
+  Widget buildField(
+    String label,
+    TextEditingController controller, {
+    TextInputType type = TextInputType.text,
+    List<TextInputFormatter>? formatter,
+    String? Function(String?)? validator,
+    bool readOnly = false,
+    VoidCallback? onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: type,
+        inputFormatters: formatter,
+        readOnly: readOnly,
+        onTap: onTap,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+        validator: validator ??
+            (v) {
+              if (v == null || v.isEmpty) return "กรุณากรอกข้อมูล";
+              return null;
+            },
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return "กรุณากรอกข้อมูล";
-        }
-        return null;
-      },
-    ),
-  );
-}
+    );
+  }
 
+  /// =========================
+  /// Dropdown
+  /// =========================
+  Widget buildDropdown(
+    String label,
+    List<String> items,
+    String? value,
+    Function(String?) onChanged,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+        items: items
+            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .toList(),
+        onChanged: onChanged,
+        validator: (v) => v == null ? "กรุณาเลือกข้อมูล" : null,
+      ),
+    );
+  }
 
-// ================= REGISTER FUNCTION =================
+  /// =========================
+  /// Date picker
+  /// =========================
+  Future<void> pickDate() async {
+    final date = await showDatePicker(
+      context: context,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      initialDate: DateTime(2000),
+    );
+
+    if (date != null) {
+      birthDate.text = "${date.year}-${date.month}-${date.day}";
+      setState(() {});
+    }
+  }
+
+  /// =========================
+  /// REGISTER
+  /// =========================
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
     final data = {
-      "citizen_id": citizenIdCtrl.text.trim(),
-      "title": titleCtrl.text.trim(),
-      "first_name": firstNameCtrl.text.trim(),
-      "last_name": lastNameCtrl.text.trim(),
-      "birth_date": birthDateCtrl.text.trim(),
-      "gender": genderCtrl.text.trim(),
-      "email": emailCtrl.text.trim(),
-      "phone": phoneCtrl.text.trim(),
-      "address_line": addressCtrl.text.trim(),
-      "subdistrict": subdistrictCtrl.text.trim(),
-      "district": districtCtrl.text.trim(),
-      "province": provinceCtrl.text.trim(),
-      "postal_code": postalCodeCtrl.text.trim(),
+      // 🔥 key ต้องตรง backend
+      "citizen_id": idCard.text.trim(),
+      "title": title,
+      "first_name": firstName.text.trim(),
+      "last_name": lastName.text.trim(),
+      "gender": gender,
+      "birth_date": birthDate.text.trim(),
+      "email": email.text.trim(),
+      "phone": phone.text.trim(),
+      "address_line": address.text.trim(),
+      "subdistrict": subDistrict.text.trim(),
+      "district": district.text.trim(),
+      "province": province.text.trim(),
+      "postal_code": zip.text.trim(),
     };
 
     setState(() => _isLoading = true);
@@ -75,11 +137,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final result = await AuthService.register(data);
 
+      if (!mounted) return;
+
       if (result['statusCode'] == 200) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => OTPScreen(email: emailCtrl.text),
+            builder: (_) => OTPScreen(email: email.text.trim()),
           ),
         );
       } else {
@@ -93,29 +157,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
-  // ================= DISPOSE =================
+  /// =========================
+  /// DISPOSE
+  /// =========================
   @override
   void dispose() {
-    citizenIdCtrl.dispose();
-    titleCtrl.dispose();
-    firstNameCtrl.dispose();
-    lastNameCtrl.dispose();
-    genderCtrl.dispose();
-    birthDateCtrl.dispose();
-    phoneCtrl.dispose();
-    emailCtrl.dispose();
-    addressCtrl.dispose();
-    subdistrictCtrl.dispose();
-    districtCtrl.dispose();
-    provinceCtrl.dispose();
-    postalCodeCtrl.dispose();
+    idCard.dispose();
+    firstName.dispose();
+    lastName.dispose();
+    birthDate.dispose();
+    phone.dispose();
+    email.dispose();
+    address.dispose();
+    subDistrict.dispose();
+    district.dispose();
+    province.dispose();
+    zip.dispose();
     super.dispose();
   }
 
-  // ================= UI =================
+  /// =========================
+  /// UI
+  /// =========================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -126,20 +193,86 @@ class _RegisterScreenState extends State<RegisterScreen> {
           key: _formKey,
           child: Column(
             children: [
-              buildField("เลขบัตรประชาชน", citizenIdCtrl),
-              buildField("คำนำหน้า", titleCtrl),
-              buildField("ชื่อจริง", firstNameCtrl),
-              buildField("นามสกุล", lastNameCtrl),
-              buildField("เพศ", genderCtrl),
-              buildField("วันเกิด", birthDateCtrl),
-              buildField("เบอร์โทร", phoneCtrl),
-              buildField("อีเมล", emailCtrl),
-              buildField("ที่อยู่", addressCtrl),
-              buildField("ตำบล", subdistrictCtrl),
-              buildField("อำเภอ", districtCtrl),
-              buildField("จังหวัด", provinceCtrl),
-              buildField("รหัสไปรษณีย์", postalCodeCtrl),
+              buildField(
+                "เลขบัตรประชาชน",
+                idCard,
+                type: TextInputType.number,
+                formatter: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(13),
+                ],
+                validator: (v) =>
+                    v!.length != 13 ? "ต้อง 13 หลัก" : null,
+              ),
+
+              buildDropdown(
+                "คำนำหน้า",
+                ["นาย", "นางสาว", "นาง"],
+                title,
+                (v) => setState(() => title = v),
+              ),
+
+              buildField(
+                "ชื่อจริง",
+                firstName,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return "กรุณากรอก";
+                  if (!thaiRegex.hasMatch(v)) return "ภาษาไทยเท่านั้น";
+                  return null;
+                },
+              ),
+
+              buildField(
+                "นามสกุล",
+                lastName,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return "กรุณากรอก";
+                  if (!thaiRegex.hasMatch(v)) return "ภาษาไทยเท่านั้น";
+                  return null;
+                },
+              ),
+
+              buildDropdown(
+                "เพศ",
+                ["ชาย", "หญิง", "ไม่ระบุ"],
+                gender,
+                (v) => setState(() => gender = v),
+              ),
+
+              buildField(
+                "วัน/เดือน/ปีเกิด",
+                birthDate,
+                readOnly: true,
+                onTap: pickDate,
+              ),
+
+              buildField(
+                "เบอร์โทรศัพท์",
+                phone,
+                type: TextInputType.number,
+                formatter: [FilteringTextInputFormatter.digitsOnly],
+              ),
+
+              buildField(
+                "อีเมล",
+                email,
+                type: TextInputType.emailAddress,
+              ),
+
+              buildField("ที่อยู่", address),
+              buildField("แขวง/ตำบล", subDistrict),
+              buildField("เขต/อำเภอ", district),
+              buildField("จังหวัด", province),
+
+              buildField(
+                "รหัสไปรษณีย์",
+                zip,
+                type: TextInputType.number,
+                formatter: [FilteringTextInputFormatter.digitsOnly],
+              ),
+
               const SizedBox(height: 20),
+
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -150,9 +283,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       : const Text("สมัครสมาชิก"),
                 ),
               ),
+
               const SizedBox(height: 12),
 
-              /// ลิงก์ Login
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
