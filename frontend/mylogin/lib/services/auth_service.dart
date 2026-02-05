@@ -6,6 +6,7 @@ class AuthService {
   // ⚠️ Android Emulator ใช้ 10.0.2.2 แทน localhost
   // ถ้า iOS simulator ใช้ http://localhost:3000
 
+/// ================= LOGIN =================
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -17,6 +18,21 @@ class AuthService {
         'loginIdentifier': email,
         'password': password,
       }),
+    );
+
+    return {
+      'statusCode': response.statusCode,
+      'body': jsonDecode(response.body),
+    };
+  }
+
+  /// ================= REGISTER =================
+  static Future<Map<String, dynamic>> register(
+      Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
     );
 
     return {
