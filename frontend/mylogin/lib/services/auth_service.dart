@@ -40,4 +40,40 @@ class AuthService {
       'body': jsonDecode(response.body),
     };
   }
+  static Future<Map<String, dynamic>> verifyOtp({
+    required String? email,
+    required String otp,
+  }) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/verify-otp"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "email": email,
+        "otp": otp,
+      }),
+    );
+
+    return {
+      "statusCode": res.statusCode,
+      "body": jsonDecode(res.body),
+    };
+  }
+  static Future<Map<String, dynamic>> setPassword({
+  required String? email,
+  required String password,
+}) async {
+  final res = await http.post(
+    Uri.parse("$baseUrl/set-password"),
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "email": email,
+      "password": password,
+    }),
+  );
+
+  return {
+    "statusCode": res.statusCode,
+    "body": jsonDecode(res.body),
+  };
+}
 }
