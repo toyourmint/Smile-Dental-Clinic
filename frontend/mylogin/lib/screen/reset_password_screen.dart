@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mylogin/widget/logo.dart';
 import 'login_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
@@ -35,6 +36,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           child: Column(
             children: [
 
+              const Center(child: LogoWidget()),
+
+              const SizedBox(height: 60),
               /// 🔹 รหัสผ่านใหม่
               TextFormField(
                 controller: passController,

@@ -1,146 +1,85 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
 import 'package:mylogin/services/auth_service.dart';
+import 'login_screen.dart';
 
 class CreatePasswordScreen extends StatefulWidget {
-  final String? email; // ✅ เพิ่มรับ email จาก OTP
+  final String email;
 
   const CreatePasswordScreen({
     super.key,
-    this.email,
+    required this.email,
   });
 
   @override
-  State<CreatePasswordScreen> createState() => _CreatePasswordScreenState();
+  State<CreatePasswordScreen> createState() =>
+      _CreatePasswordScreenState();
 }
 
-class _CreatePasswordScreenState extends State<CreatePasswordScreen> {
+class _CreatePasswordScreenState
+    extends State<CreatePasswordScreen> {
   final passController = TextEditingController();
   final confirmController = TextEditingController();
 
-  bool obscure1 = true;
-  bool obscure2 = true;
-  bool _isLoading = false;
-
   final _formKey = GlobalKey<FormState>();
 
-  /// =========================
-  /// SUBMIT PASSWORD
-  /// =========================
-  Future<void> _submit() async {
+  bool loading = false;
+
+  Future<void> submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() => loading = true);
 
-    try {
-      /// 🔥 ส่ง backend
-      final result = await AuthService.setPassword(
-        email: widget.email,
-        password: passController.text.trim(),
-      );
+    await AuthService.setPassword(
+      email: widget.email,
+      password: passController.text,
+    );
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      if (result['statusCode'] == 200) {
-        /// กลับ Login
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['body']['message'] ?? "เกิดข้อผิดพลาด")),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้")),
-      );
-    }
-
-    setState(() => _isLoading = false);
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
-  /// =========================
-  /// UI
-  /// =========================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("สร้างรหัสผ่าน")),
-
       body: Padding(
         padding: const EdgeInsets.all(24),
-
         child: Form(
           key: _formKey,
-
           child: Column(
             children: [
-
-              /// Password
               TextFormField(
                 controller: passController,
-                obscureText: obscure1,
-                decoration: InputDecoration(
+                obscureText: true,
+                decoration: const InputDecoration(
                   labelText: "รหัสผ่าน",
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      obscure1 ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() => obscure1 = !obscure1);
-                    },
-                  ),
+                  border: OutlineInputBorder(),
                 ),
-                validator: (value) {
-                  if (value == null || value.length < 6) {
-                    return "รหัสผ่านอย่างน้อย 6 ตัว";
-                  }
-                  return null;
-                },
+                validator: (v) =>
+                    v!.length < 6 ? "อย่างน้อย 6 ตัว" : null,
               ),
-
               const SizedBox(height: 16),
-
-              /// Confirm Password
               TextFormField(
                 controller: confirmController,
-                obscureText: obscure2,
-                decoration: InputDecoration(
+                obscureText: true,
+                decoration: const InputDecoration(
                   labelText: "ยืนยันรหัสผ่าน",
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      obscure2 ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() => obscure2 = !obscure2);
-                    },
-                  ),
+                  border: OutlineInputBorder(),
                 ),
-                validator: (value) {
-                  if (value != passController.text) {
-                    return "รหัสผ่านไม่ตรงกัน";
-                  }
-                  return null;
-                },
+                validator: (v) =>
+                    v != passController.text
+                        ? "รหัสผ่านไม่ตรงกัน"
+                        : null,
               ),
-
               const SizedBox(height: 30),
-
-              /// Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _submit,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("ยืนยัน"),
-                ),
+              ElevatedButton(
+                onPressed: loading ? null : submit,
+                child: const Text("ยืนยัน"),
               ),
             ],
           ),

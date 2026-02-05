@@ -3,10 +3,8 @@ import 'package:http/http.dart' as http;
 
 class AuthService {
   static const String baseUrl = 'http://10.0.2.2:3000/api/auth';
-  // ⚠️ Android Emulator ใช้ 10.0.2.2 แทน localhost
-  // ถ้า iOS simulator ใช้ http://localhost:3000
 
-/// ================= LOGIN =================
+  /// ================= LOGIN =================
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -40,8 +38,26 @@ class AuthService {
       'body': jsonDecode(response.body),
     };
   }
+
+  /// ================= SEND OTP =================
+  static Future<Map<String, dynamic>> sendOtp({
+    required String email,
+  }) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/send-otp"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email}),
+    );
+
+    return {
+      "statusCode": res.statusCode,
+      "body": jsonDecode(res.body),
+    };
+  }
+
+  /// ================= VERIFY OTP =================
   static Future<Map<String, dynamic>> verifyOtp({
-    required String? email,
+    required String email,
     required String otp,
   }) async {
     final res = await http.post(
@@ -58,22 +74,34 @@ class AuthService {
       "body": jsonDecode(res.body),
     };
   }
-  static Future<Map<String, dynamic>> setPassword({
-  required String? email,
-  required String password,
-}) async {
-  final res = await http.post(
-    Uri.parse("$baseUrl/set-password"),
-    headers: {"Content-Type": "application/json"},
-    body: jsonEncode({
-      "email": email,
-      "password": password,
-    }),
-  );
 
-  return {
-    "statusCode": res.statusCode,
-    "body": jsonDecode(res.body),
-  };
+  /// ================= SET PASSWORD =================
+  static Future<Map<String, dynamic>> setPassword({
+    required String email,
+    required String password,
+  }) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/set-password"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "email": email,
+        "password": password,
+      }),
+    );
+
+    return {
+      "statusCode": res.statusCode,
+      "body": jsonDecode(res.body),
+    };
+  }
+  static Future<void> resendOtp({
+  required String email,
+}) async {
+  await http.post(
+    Uri.parse("$baseUrl/resend-otp"),
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({"email": email}),
+  );
 }
+
 }
