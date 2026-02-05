@@ -4,10 +4,12 @@ import 'package:mylogin/services/auth_service.dart';
 
 class CreatePasswordScreen extends StatefulWidget {
   final String? email; // ✅ เพิ่มรับ email จาก OTP
+  final String otp; // ✅ เพิ่ม otp
 
   const CreatePasswordScreen({
     super.key,
     this.email,
+    required this.otp,
   });
 
   @override
@@ -35,9 +37,12 @@ class _CreatePasswordScreenState extends State<CreatePasswordScreen> {
     try {
       /// 🔥 ส่ง backend
       final result = await AuthService.setPassword(
-        email: widget.email,
+        email: widget.email!, // ตอนนี้ต้องไม่เป็น null
         password: passController.text.trim(),
+        confirmPassword: confirmController.text.trim(),
+        otp: widget.otp,
       );
+
 
       if (!mounted) return;
 

@@ -4,12 +4,12 @@ import 'create_password_screen.dart';
 
 class OTPScreen extends StatefulWidget {
   final bool isReset;
-  final String? email; // ✅ รับ email จาก Register
+  final String email; // ✅ บังคับต้องมี email
 
   const OTPScreen({
     super.key,
     this.isReset = false,
-    this.email,
+    required this.email,
   });
 
   @override
@@ -17,7 +17,6 @@ class OTPScreen extends StatefulWidget {
 }
 
 class _OTPScreenState extends State<OTPScreen> {
-
   final List<TextEditingController> controllers =
       List.generate(6, (_) => TextEditingController());
 
@@ -29,8 +28,7 @@ class _OTPScreenState extends State<OTPScreen> {
   /// =============================
   /// รวม OTP
   /// =============================
-  String get otp =>
-      controllers.map((e) => e.text).join();
+  String get otp => controllers.map((e) => e.text).join();
 
   /// =============================
   /// verify OTP
@@ -46,7 +44,6 @@ class _OTPScreenState extends State<OTPScreen> {
     setState(() => _isLoading = true);
 
     try {
-      /// 🔥 เรียก backend
       final result = await AuthService.verifyOtp(
         email: widget.email,
         otp: otp,
@@ -55,29 +52,24 @@ class _OTPScreenState extends State<OTPScreen> {
       if (!mounted) return;
 
       if (result['statusCode'] == 200) {
-        if (widget.isReset) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  CreatePasswordScreen(email: widget.email),
+        /// ✅ ส่ง email + otp ต่อไป
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CreatePasswordScreen(
+              email: widget.email,
+              otp: otp,
             ),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  CreatePasswordScreen(email: widget.email),
-            ),
-          );
-        }
+          ),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("OTP ไม่ถูกต้อง")),
+          SnackBar(content: Text(result['body']['message'] ?? "OTP ไม่ถูกต้อง")),
         );
       }
-    } catch (e) {
+    } catch (e, stack) {
+      print("VERIFY OTP ERROR: $e");
+      print(stack);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้")),
       );
@@ -104,12 +96,9 @@ class _OTPScreenState extends State<OTPScreen> {
           border: OutlineInputBorder(),
         ),
         onChanged: (value) {
-          /// ไปช่องถัดไป
           if (value.isNotEmpty && index < 5) {
             focusNodes[index + 1].requestFocus();
           }
-
-          /// ลบแล้วถอยกลับ
           if (value.isEmpty && index > 0) {
             focusNodes[index - 1].requestFocus();
           }
@@ -148,27 +137,17 @@ class _OTPScreenState extends State<OTPScreen> {
               "กรอกรหัส OTP 6 หลัก",
               style: TextStyle(fontSize: 18),
             ),
-
             const SizedBox(height: 8),
-
-            /// แสดง email
-            if (widget.email != null)
-              Text(
-                widget.email!,
-                style: const TextStyle(color: Colors.grey),
-              ),
-
+            Text(
+              widget.email,
+              style: const TextStyle(color: Colors.grey),
+            ),
             const SizedBox(height: 30),
-
-            /// OTP 6 ช่อง
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: List.generate(6, buildOtpBox),
             ),
-
             const SizedBox(height: 30),
-
-            /// ปุ่มยืนยัน
             SizedBox(
               width: double.infinity,
               height: 50,

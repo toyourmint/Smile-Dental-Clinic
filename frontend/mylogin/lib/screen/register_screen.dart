@@ -31,17 +31,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? title;
   String? gender;
 
-  final thaiRegex = RegExp(r'^[ก-๙\s]+$');
-
   /// =========================
-  /// buildField
+  /// Text Field Builder
   /// =========================
   Widget buildField(
     String label,
     TextEditingController controller, {
     TextInputType type = TextInputType.text,
     List<TextInputFormatter>? formatter,
-    String? Function(String?)? validator,
     bool readOnly = false,
     VoidCallback? onTap,
   }) {
@@ -57,23 +54,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
           labelText: label,
           border: const OutlineInputBorder(),
         ),
-        validator: validator ??
-            (v) {
-              if (v == null || v.isEmpty) return "กรุณากรอกข้อมูล";
-              return null;
-            },
+        validator: (v) =>
+            v == null || v.isEmpty ? "กรุณากรอกข้อมูล" : null,
       ),
     );
   }
 
   /// =========================
-  /// Dropdown
+  /// Dropdown Builder
   /// =========================
   Widget buildDropdown(
     String label,
     List<String> items,
     String? value,
-    Function(String?) onChanged,
+    void Function(String?) onChanged,
   ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -93,7 +87,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   /// =========================
-  /// Date picker
+  /// Date Picker
   /// =========================
   Future<void> pickDate() async {
     final date = await showDatePicker(
@@ -104,9 +98,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     if (date != null) {
+      // ✅ FIX: format ให้ MySQL รับแน่นอน
       birthDate.text =
-          "${date.day}/${date.month}/${date.year}";
-      birthDate.text = "${date.year}-${date.month}-${date.day}";
+          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
       setState(() {});
     }
   }
@@ -118,12 +112,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final data = {
-      // 🔥 key ต้องตรง backend
       "citizen_id": idCard.text.trim(),
-      "title": title,
+      "title": title ?? "",
       "first_name": firstName.text.trim(),
       "last_name": lastName.text.trim(),
-      "gender": gender,
+      "gender": gender ?? "",
       "birth_date": birthDate.text.trim(),
       "email": email.text.trim(),
       "phone": phone.text.trim(),
@@ -150,12 +143,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['body']['message'])),
+          SnackBar(content: Text(result['body']['message'] ?? 'เกิดข้อผิดพลาด')),
         );
       }
-    } catch (e) {
+    } catch (e, stack) {
+      // ✅ DEBUG ชัดเจน
+      print("REGISTER ERROR: $e");
+      print(stack);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้")),
+        SnackBar(content: Text("Error: $e")),
       );
     }
 
@@ -203,8 +199,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(13),
                 ],
-                validator: (v) =>
-                    v!.length != 13 ? "ต้อง 13 หลัก" : null,
               ),
 
               buildDropdown(
@@ -214,29 +208,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 (v) => setState(() => title = v),
               ),
 
-              buildField(
-                "ชื่อจริง",
-                firstName,
-                validator: (v) {
-                  if (v == null || v.isEmpty) return "กรุณากรอก";
-                  if (!thaiRegex.hasMatch(v)) return "ภาษาไทยเท่านั้น";
-                  return null;
-                },
-              ),
-
-              buildField(
-                "นามสกุล",
-                lastName,
-                validator: (v) {
-                  if (v == null || v.isEmpty) return "กรุณากรอก";
-                  if (!thaiRegex.hasMatch(v)) return "ภาษาไทยเท่านั้น";
-                  return null;
-                },
-              ),
+              buildField("ชื่อจริง", firstName),
+              buildField("นามสกุล", lastName),
 
               buildDropdown(
                 "เพศ",
-                ["ชาย", "หญิง", "ไม่ระบุ"],
+                ["male", "female", "other"],
                 gender,
                 (v) => setState(() => gender = v),
               ),
@@ -255,12 +232,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 formatter: [FilteringTextInputFormatter.digitsOnly],
               ),
 
-              buildField(
-                "อีเมล",
-                email,
-                type: TextInputType.emailAddress,
-              ),
-
+              buildField("อีเมล", email, type: TextInputType.emailAddress),
               buildField("ที่อยู่", address),
               buildField("แขวง/ตำบล", subDistrict),
               buildField("เขต/อำเภอ", district),

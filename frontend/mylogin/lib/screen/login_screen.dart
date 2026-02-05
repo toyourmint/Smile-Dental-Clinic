@@ -55,11 +55,14 @@ class _LoginScreenState extends State<LoginScreen> {
           SnackBar(content: Text(result['body']['message'])),
         );
       }
-    } catch (e) {
+    } catch (e, stack) {
+      print("ERROR: $e");
+      print(stack);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้")),
+        SnackBar(content: Text("Error: $e")),
       );
     }
+
 
     setState(() => _isLoading = false);
   }
