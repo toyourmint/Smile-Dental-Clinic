@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mylogin/screen/register_screen.dart';
 import 'package:mylogin/widget/logo.dart';
+import 'package:mylogin/services/auth_service.dart';
+
 import 'home_screen.dart';
 import 'forget_email_screen.dart';
 
@@ -12,17 +14,73 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
+  /// =============================
+  /// LOGIN FUNCTION
+  /// =============================
+  Future<void> _login() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    /// เช็คข้อมูลก่อน
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("กรุณากรอกข้อมูลให้ครบ")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await AuthService.login(
+        email: email,
+        password: password,
+      );
+
+      if (result['statusCode'] == 200) {
+        /// สำเร็จ → ไปหน้า Home
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
+        /// error จาก backend
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['body']['message'])),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้")),
+      );
+    }
+
+    setState(() => _isLoading = false);
+  }
+
+  /// =============================
+  /// DISPOSE
+  /// =============================
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  /// =============================
+  /// UI
+  /// =============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -42,9 +100,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 20),
 
-              /// Email
+              /// ================= EMAIL =================
               const Text("อีเมล"),
               const SizedBox(height: 6),
+
               TextField(
                 controller: emailController,
                 decoration: InputDecoration(
@@ -57,9 +116,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 20),
 
-              /// Password + show/hide
+              /// ================= PASSWORD =================
               const Text("รหัสผ่าน"),
               const SizedBox(height: 6),
+
               TextField(
                 controller: passwordController,
                 obscureText: _obscurePassword,
@@ -67,8 +127,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
-
-                  /// 👁 ปุ่มโชว์รหัส
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -84,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              /// Forgot password
+              /// ================= FORGOT PASSWORD =================
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -94,68 +152,54 @@ class _LoginScreenState extends State<LoginScreen> {
                       MaterialPageRoute(
                         builder: (_) => const ForgetEmailScreen(),
                       ),
-                    ); 
+                    );
                   },
-                child: const Text("ลืมรหัสผ่าน ?"),
+                  child: const Text("ลืมรหัสผ่าน ?"),
                 ),
               ),
 
               const SizedBox(height: 10),
 
-              /// Login Button → ไปหน้า Home
+              /// ================= LOGIN BUTTON =================
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
-
-                    /// ตัวอย่างเช็คง่าย ๆ
-                    if (emailController.text.isNotEmpty &&
-                        passwordController.text.isNotEmpty) {
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HomeScreen(),
-                        ),
-                      );
-                    }
-                  },
+                  onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    "เข้าสู่ระบบ",
-                    style: TextStyle(fontSize: 16),
-                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          "เข้าสู่ระบบ",
+                          style: TextStyle(fontSize: 16),
+                        ),
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              /// Register
+              /// ================= REGISTER =================
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("ยังไม่มีบัญชี ? "),
-                    GestureDetector(
-                      onTap: () {},
-                      child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const RegisterScreen(),
-                      ),
-                    ); 
-                  },
-                child: const Text("ลงทะเบียน"),
-                ),
-                    )
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text("ลงทะเบียน"),
+                    ),
                   ],
                 ),
               ),
