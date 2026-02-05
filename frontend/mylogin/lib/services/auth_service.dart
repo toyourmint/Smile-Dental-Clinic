@@ -6,6 +6,7 @@ class AuthService {
   // ⚠️ Android Emulator ใช้ 10.0.2.2 แทน localhost
   // ถ้า iOS simulator ใช้ http://localhost:3000
 
+/// ================= LOGIN =================
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -24,4 +25,55 @@ class AuthService {
       'body': jsonDecode(response.body),
     };
   }
+
+  /// ================= REGISTER =================
+  static Future<Map<String, dynamic>> register(
+      Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+
+    return {
+      'statusCode': response.statusCode,
+      'body': jsonDecode(response.body),
+    };
+  }
+  static Future<Map<String, dynamic>> verifyOtp({
+    required String? email,
+    required String otp,
+  }) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/verify-otp"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "email": email,
+        "otp": otp,
+      }),
+    );
+
+    return {
+      "statusCode": res.statusCode,
+      "body": jsonDecode(res.body),
+    };
+  }
+  static Future<Map<String, dynamic>> setPassword({
+  required String? email,
+  required String password,
+}) async {
+  final res = await http.post(
+    Uri.parse("$baseUrl/set-password"),
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "email": email,
+      "password": password,
+    }),
+  );
+
+  return {
+    "statusCode": res.statusCode,
+    "body": jsonDecode(res.body),
+  };
+}
 }
