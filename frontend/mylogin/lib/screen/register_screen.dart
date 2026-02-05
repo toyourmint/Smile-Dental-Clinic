@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'otp_screen.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -9,7 +10,6 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-
   final _formKey = GlobalKey<FormState>();
 
   Widget buildField(String label) {
@@ -20,7 +20,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           labelText: label,
           border: const OutlineInputBorder(),
         ),
-
         validator: (value) {
           if (value == null || value.isEmpty) {
             return "กรุณากรอกข้อมูล";
@@ -33,10 +32,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(title: const Text("ลงทะเบียน")),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
 
@@ -45,7 +42,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
           child: Column(
             children: [
-
               buildField("เลขบัตรประชาชน"),
               buildField("คำนำหน้า"),
               buildField("ชื่อจริง"),
@@ -62,20 +58,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               const SizedBox(height: 20),
 
-              ElevatedButton(
-                onPressed: () {
+              /// ปุ่มสมัคร
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const OTPScreen(),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text("สมัครสมาชิก"),
+                ),
+              ),
 
-                  if (_formKey.currentState!.validate()) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const OTPScreen(),
-                      ),
-                    );
-                  }
-                },
-                child: const Text("สมัครสมาชิก"),
-              )
+              const SizedBox(height: 12),
+
+              /// ลิงก์ Login
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("มีบัญชีอยู่แล้ว ? "),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LoginScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text("เข้าสู่ระบบ"),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
