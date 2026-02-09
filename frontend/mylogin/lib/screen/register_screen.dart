@@ -265,7 +265,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               buildDropdown(
                 "สิทธิการรักษา",
-                ["บัตรทอง", "ข้าราชการ", "ประกันสังคม"],
+                ["บัตรทอง", "ข้าราชการ", "ประกันสังคม","-"],
                 rights,
                 (v) => setState(() => rights = v),
               ),
