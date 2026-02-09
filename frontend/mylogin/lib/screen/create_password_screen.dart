@@ -83,7 +83,9 @@ class CreatePasswordScreenState extends State<CreatePasswordScreen> {
 
           child: Column(
             children: [
+              // const SizedBox(height: 20),
               const Center(child: LogoWidget()),
+              const SizedBox(height: 30),
               /// Password
               TextFormField(
                 controller: passController,
