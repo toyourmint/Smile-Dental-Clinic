@@ -30,6 +30,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String? title;
   String? gender;
+  String? rights;
 
   final thaiRegex = RegExp(r'^[ก-๙\s]+$');
 
@@ -126,6 +127,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       "gender": gender,
       "birth_date": birthDate.text.trim(),
       "email": email.text.trim(),
+      "rights": rights,
       "phone": phone.text.trim(),
       "address_line": address.text.trim(),
       "subdistrict": subDistrict.text.trim(),
@@ -259,6 +261,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 "อีเมล",
                 email,
                 type: TextInputType.emailAddress,
+              ),
+
+              buildDropdown(
+                "สิทธิการรักษา",
+                ["บัตรทอง", "ข้าราชการ", "ประกันสังคม"],
+                rights,
+                (v) => setState(() => rights = v),
               ),
 
               buildField("ที่อยู่", address),
