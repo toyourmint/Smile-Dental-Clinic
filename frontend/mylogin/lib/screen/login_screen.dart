@@ -27,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
-    /// เช็คข้อมูลก่อน
+    /// เช็คข้อมูลก่อนยิง API
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("กรุณากรอกข้อมูลให้ครบ")),
@@ -43,6 +43,8 @@ class _LoginScreenState extends State<LoginScreen> {
         password: password,
       );
 
+      if (!mounted) return;
+
       if (result['statusCode'] == 200) {
         /// สำเร็จ → ไปหน้า Home
         Navigator.pushReplacement(
@@ -52,16 +54,26 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         /// error จาก backend
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['body']['message'])),
+          SnackBar(
+            content: Text(
+              result['body']['message'] ?? "เข้าสู่ระบบไม่สำเร็จ",
+            ),
+          ),
         );
       }
-    } catch (e) {
+    } catch (e, stack) {
+      /// log ไว้ debug (ไม่โชว์ user)
+      debugPrint("LOGIN ERROR: $e");
+      debugPrintStack(stackTrace: stack);
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้")),
       );
     }
 
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   /// =============================
@@ -81,21 +93,27 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 28),
+
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 60),
+              const SizedBox(height: 90),
 
+              /// LOGO
               const Center(child: LogoWidget()),
 
               const SizedBox(height: 60),
 
               const Text(
                 "เข้าสู่ระบบ",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
 
               const SizedBox(height: 20),
@@ -106,6 +124,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
               TextField(
                 controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   hintText: "name@gmail.com",
                   border: OutlineInputBorder(
@@ -123,6 +143,8 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: passwordController,
                 obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _login(), // 🔥 กด Enter แล้ว login ได้
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
