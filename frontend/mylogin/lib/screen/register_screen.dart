@@ -251,6 +251,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: (v) => v == null ? "กรุณาเลือกข้อมูล" : null,
               ),
 
+              const SizedBox(height: 13),
               buildField("ชื่อจริง", firstName),
               buildField("นามสกุล", lastName),
 
@@ -268,6 +269,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 onChanged: (v) => setState(() => gender = v),
                 validator: (v) => v == null ? "กรุณาเลือกข้อมูล" : null,
               ),
+
+              const SizedBox(height: 13),
 
               buildField(
                 "วัน/เดือน/ปีเกิด",
@@ -297,6 +300,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 onChanged: (v) => setState(() => right = v),
                 validator: (v) => v == null ? "กรุณาเลือกข้อมูล" : null,
               ),
+
+              const SizedBox(height: 13),
 
               buildField("ที่อยู่", address),
               buildField("แขวง/ตำบล", subDistrict),

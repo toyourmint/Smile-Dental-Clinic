@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mylogin/services/auth_service.dart';
+import 'package:mylogin/widget/logo.dart';
 import 'login_screen.dart';
 
 class CreatePasswordScreen extends StatefulWidget {
@@ -82,6 +83,7 @@ class CreatePasswordScreenState extends State<CreatePasswordScreen> {
 
           child: Column(
             children: [
+              const Center(child: LogoWidget()),
               /// Password
               TextFormField(
                 controller: passController,
