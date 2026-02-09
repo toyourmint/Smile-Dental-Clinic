@@ -4,6 +4,70 @@ import '../services/auth_service.dart';
 import 'otp_screen.dart';
 import 'login_screen.dart';
 
+/// =========================
+/// ENUMS
+/// =========================
+enum Gender { male, female, other }
+enum TreatmentRight { goldCard, government, socialSecurity, selfPay }
+
+/// =========================
+/// EXTENSIONS
+/// =========================
+extension GenderExt on Gender {
+  String get api {
+    switch (this) {
+      case Gender.male:
+        return 'male';
+      case Gender.female:
+        return 'female';
+      case Gender.other:
+        return 'other';
+    }
+  }
+
+  String get labelTH {
+    switch (this) {
+      case Gender.male:
+        return 'ชาย';
+      case Gender.female:
+        return 'หญิง';
+      case Gender.other:
+        return 'ไม่ระบุ';
+    }
+  }
+}
+
+extension TreatmentRightExt on TreatmentRight {
+  String get api {
+    switch (this) {
+      case TreatmentRight.goldCard:
+        return 'gold_card';
+      case TreatmentRight.government:
+        return 'government';
+      case TreatmentRight.socialSecurity:
+        return 'social_security';
+      case TreatmentRight.selfPay:
+        return 'self_pay';
+    }
+  }
+
+  String get labelTH {
+    switch (this) {
+      case TreatmentRight.goldCard:
+        return 'บัตรทอง';
+      case TreatmentRight.government:
+        return 'ข้าราชการ';
+      case TreatmentRight.socialSecurity:
+        return 'ประกันสังคม';
+      case TreatmentRight.selfPay:
+        return '-';
+    }
+  }
+}
+
+/// =========================
+/// SCREEN
+/// =========================
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -15,9 +79,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
-  /// =========================
-  /// Controllers
-  /// =========================
+  // Controllers
   final idCard = TextEditingController();
   final firstName = TextEditingController();
   final lastName = TextEditingController();
@@ -31,10 +93,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final zip = TextEditingController();
 
   String? title;
-  String? gender;
-  String? rights;
-
-  final thaiRegex = RegExp(r'^[ก-๙\s]+$');
+  Gender? gender;
+  TreatmentRight? right;
 
   /// =========================
   /// Text Field Builder
@@ -44,7 +104,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     TextEditingController controller, {
     TextInputType type = TextInputType.text,
     List<TextInputFormatter>? formatter,
-    String? Function(String?)? validator,
     bool readOnly = false,
     VoidCallback? onTap,
   }) {
@@ -60,40 +119,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           labelText: label,
           border: const OutlineInputBorder(),
         ),
-        validator: validator ??
-            (v) => v == null || v.isEmpty ? "กรุณากรอกข้อมูล" : null,
+        validator: (v) =>
+            v == null || v.isEmpty ? "กรุณากรอกข้อมูล" : null,
       ),
     );
   }
 
   /// =========================
-  /// Dropdown Builder
-  /// =========================
-  Widget buildDropdown(
-    String label,
-    List<String> items,
-    String? value,
-    void Function(String?) onChanged,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<String>(
-        value: value,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        items: items
-            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-            .toList(),
-        onChanged: onChanged,
-        validator: (v) => v == null ? "กรุณาเลือกข้อมูล" : null,
-      ),
-    );
-  }
-
-  /// =========================
-  /// Date Picker (MySQL format)
+  /// Date Picker
   /// =========================
   Future<void> pickDate() async {
     final date = await showDatePicker(
@@ -118,12 +151,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final data = {
       "citizen_id": idCard.text.trim(),
-      "title": title ?? "",
+      "title": title,
       "first_name": firstName.text.trim(),
       "last_name": lastName.text.trim(),
-      "gender": gender ?? "",
+      "gender": gender?.api ?? "other",
       "birth_date": birthDate.text.trim(),
-      "rights": rights ?? "",
+      "rights": right?.api ?? "self_pay",
       "email": email.text.trim(),
       "phone": phone.text.trim(),
       "address_line": address.text.trim(),
@@ -154,12 +187,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
       }
-    } catch (e, stack) {
-      /// ✅ debug
-      debugPrint("REGISTER ERROR: $e");
-      debugPrintStack(stackTrace: stack);
-
-      /// ✅ user friendly
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้")),
       );
@@ -209,36 +237,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(13),
                 ],
-                validator: (v) =>
-                    v!.length != 13 ? "ต้อง 13 หลัก" : null,
               ),
 
-              buildDropdown(
-                "คำนำหน้า",
-                ["นาย", "นางสาว", "นาง"],
-                title,
-                (v) => setState(() => title = v),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: "คำนำหน้า",
+                  border: OutlineInputBorder(),
+                ),
+                items: ["นาย", "นางสาว", "นาง"]
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (v) => setState(() => title = v),
+                validator: (v) => v == null ? "กรุณาเลือกข้อมูล" : null,
               ),
 
-              buildField(
-                "ชื่อจริง",
-                firstName,
-                // validator: (v) =>
-                    // !thaiRegex.hasMatch(v ?? "") ? "ภาษาไทยเท่านั้น" : null,
-              ),
+              buildField("ชื่อจริง", firstName),
+              buildField("นามสกุล", lastName),
 
-              buildField(
-                "นามสกุล",
-                lastName,
-                // validator: (v) =>
-                    // !thaiRegex.hasMatch(v ?? "") ? "ภาษาไทยเท่านั้น" : null,
-              ),
-
-              buildDropdown(
-                "เพศ",
-                ["ชาย", "หญิง", "ไม่ระบุ"],
-                gender,
-                (v) => setState(() => gender = v),
+              DropdownButtonFormField<Gender>(
+                decoration: const InputDecoration(
+                  labelText: "เพศ",
+                  border: OutlineInputBorder(),
+                ),
+                items: Gender.values
+                    .map((g) => DropdownMenuItem(
+                          value: g,
+                          child: Text(g.labelTH),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => gender = v),
+                validator: (v) => v == null ? "กรุณาเลือกข้อมูล" : null,
               ),
 
               buildField(
@@ -248,21 +276,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 onTap: pickDate,
               ),
 
-              buildField(
-                "เบอร์โทรศัพท์",
-                phone,
-                type: TextInputType.number,
-                formatter: [FilteringTextInputFormatter.digitsOnly],
-              ),
+              buildField("เบอร์โทรศัพท์", phone,
+                  type: TextInputType.number,
+                  formatter: [FilteringTextInputFormatter.digitsOnly]),
 
               buildField("อีเมล", email,
                   type: TextInputType.emailAddress),
 
-              buildDropdown(
-                "สิทธิการรักษา",
-                ["บัตรทอง", "ข้าราชการ", "ประกันสังคม", "-"],
-                rights,
-                (v) => setState(() => rights = v),
+              DropdownButtonFormField<TreatmentRight>(
+                decoration: const InputDecoration(
+                  labelText: "สิทธิการรักษา",
+                  border: OutlineInputBorder(),
+                ),
+                items: TreatmentRight.values
+                    .map((r) => DropdownMenuItem(
+                          value: r,
+                          child: Text(r.labelTH),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => right = v),
+                validator: (v) => v == null ? "กรุณาเลือกข้อมูล" : null,
               ),
 
               buildField("ที่อยู่", address),
@@ -290,7 +323,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
 
-               Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text("มีบัญชีอยู่แล้ว ? "),

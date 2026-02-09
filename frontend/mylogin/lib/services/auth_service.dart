@@ -22,7 +22,7 @@ class AuthService {
 
     return {
       'statusCode': res.statusCode,
-      'body': jsonDecode(res.body),
+      'body': jsonDecode(utf8.decode(res.bodyBytes)),
     };
   }
 
