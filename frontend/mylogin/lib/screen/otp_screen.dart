@@ -89,7 +89,7 @@ class _OTPScreenState extends State<OTPScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => CreatePasswordScreen(email: widget.email),
+            builder: (_) => CreatePasswordScreen(email: widget.email, otp: otp,),
           ),
         );
       } else {

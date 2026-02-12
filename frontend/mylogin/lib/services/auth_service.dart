@@ -2,106 +2,104 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AuthService {
+  /// Android Emulator → 10.0.2.2
   static const String baseUrl = 'http://10.0.2.2:3000/api/auth';
 
-  /// ================= LOGIN =================
+  static const _headers = {
+    'Content-Type': 'application/json',
+  };
+
+  /// helper ลดโค้ดซ้ำ
+  static Future<Map<String, dynamic>> _post(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+
+    return {
+      'statusCode': res.statusCode,
+      'body': jsonDecode(utf8.decode(res.bodyBytes)),
+    };
+  }
+
+  // =========================
+  // LOGIN
+  // =========================
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'loginIdentifier': email,
-        'password': password,
-      }),
-    );
-
-    return {
-      'statusCode': response.statusCode,
-      'body': jsonDecode(response.body),
-    };
+  }) {
+    return _post('/login', {
+      'loginIdentifier': email,
+      'password': password,
+    });
   }
 
-  /// ================= REGISTER =================
+  // =========================
+  // REGISTER
+  // =========================
   static Future<Map<String, dynamic>> register(
-      Map<String, dynamic> data) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(data),
-    );
-
-    return {
-      'statusCode': response.statusCode,
-      'body': jsonDecode(response.body),
-    };
+      Map<String, dynamic> data) {
+    return _post('/register', data);
   }
 
-  /// ================= SEND OTP =================
-  static Future<Map<String, dynamic>> sendOtp({
+  // =========================
+  // REQUEST OTP (Forgot Password)
+  // ใช้กับ ForgetEmailScreen
+  // =========================
+  static Future<Map<String, dynamic>> requestPasswordReset({
     required String email,
-  }) async {
-    final res = await http.post(
-      Uri.parse("$baseUrl/send-otp"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"email": email}),
-    );
-
-    return {
-      "statusCode": res.statusCode,
-      "body": jsonDecode(res.body),
-    };
+  }) {
+    return _post('/forgot-password', {
+      'email': email,
+    });
   }
 
-  /// ================= VERIFY OTP =================
+  // =========================
+  // VERIFY OTP
+  // ใช้กับ OTPScreen
+  // =========================
   static Future<Map<String, dynamic>> verifyOtp({
     required String email,
     required String otp,
-  }) async {
-    final res = await http.post(
-      Uri.parse("$baseUrl/verify-otp"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "email": email,
-        "otp": otp,
-      }),
-    );
-
-    return {
-      "statusCode": res.statusCode,
-      "body": jsonDecode(res.body),
-    };
+  }) {
+    return _post('/verify-otp', {
+      'email': email,
+      'otp': otp,
+    });
   }
 
-  /// ================= SET PASSWORD =================
+  // =========================
+  // RESEND OTP
+  // ใช้กับปุ่ม "ส่งอีกครั้ง"
+  // =========================
+  static Future<Map<String, dynamic>> resendOtp({
+    required String email,
+  }) {
+    return _post('/resend-otp', {
+      'email': email,
+    });
+  }
+
+  // =========================
+  // SET PASSWORD
+  // ใช้กับ CreatePasswordScreen
+  // =========================
   static Future<Map<String, dynamic>> setPassword({
     required String email,
     required String password,
-  }) async {
-    final res = await http.post(
-      Uri.parse("$baseUrl/set-password"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "email": email,
-        "password": password,
-      }),
-    );
-
-    return {
-      "statusCode": res.statusCode,
-      "body": jsonDecode(res.body),
-    };
+    required String confirmPassword,
+    required String otp,
+  }) {
+    return _post('/set-password', {
+      'email': email,
+      'password': password,
+      'confirmPassword': confirmPassword,
+      'otp': otp,
+    });
   }
-  static Future<void> resendOtp({
-  required String email,
-}) async {
-  await http.post(
-    Uri.parse("$baseUrl/resend-otp"),
-    headers: {"Content-Type": "application/json"},
-    body: jsonEncode({"email": email}),
-  );
-}
-
 }

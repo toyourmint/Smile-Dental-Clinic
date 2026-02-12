@@ -1,58 +1,92 @@
 import 'package:flutter/material.dart';
 import 'package:mylogin/services/auth_service.dart';
+import 'package:mylogin/widget/logo.dart';
 import 'login_screen.dart';
 
 class CreatePasswordScreen extends StatefulWidget {
   final String email;
+  final String otp;
 
   const CreatePasswordScreen({
     super.key,
     required this.email,
+    required this.otp,
   });
 
   @override
-  State<CreatePasswordScreen> createState() =>
-      _CreatePasswordScreenState();
+  State<CreatePasswordScreen> createState() => CreatePasswordScreenState();
 }
 
-class _CreatePasswordScreenState
-    extends State<CreatePasswordScreen> {
+class CreatePasswordScreenState extends State<CreatePasswordScreen> {
   final passController = TextEditingController();
   final confirmController = TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
 
-  bool loading = false;
+  bool _isLoading = false;
 
-  Future<void> submit() async {
+  /// =========================
+  /// SUBMIT (Backend แบบโค้ด 2)
+  /// =========================
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => loading = true);
+    setState(() => _isLoading = true);
 
-    await AuthService.setPassword(
-      email: widget.email,
-      password: passController.text,
-    );
+    try {
+      final result = await AuthService.setPassword(
+        email: widget.email,
+        password: passController.text.trim(),
+        confirmPassword: confirmController.text.trim(),
+        otp: widget.otp,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+      if (result['statusCode'] == 200) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result['body']['message'] ?? "เกิดข้อผิดพลาด",
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้")),
+      );
+    }
+
+    setState(() => _isLoading = false);
   }
 
+  /// =========================
+  /// UI (แบบโค้ดแรก เรียบ ๆ)
+  /// =========================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("สร้างรหัสผ่าน")),
+
       body: Padding(
         padding: const EdgeInsets.all(24),
+
         child: Form(
           key: _formKey,
+
           child: Column(
             children: [
+              // const SizedBox(height: 20),
+              const Center(child: LogoWidget()),
+              const SizedBox(height: 30),
+              /// Password
               TextFormField(
                 controller: passController,
                 obscureText: true,
@@ -61,9 +95,12 @@ class _CreatePasswordScreenState
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) =>
-                    v!.length < 6 ? "อย่างน้อย 6 ตัว" : null,
+                    v!.length < 6 ? "อย่างน้อย 6 ตัวอักษร" : null,
               ),
+
               const SizedBox(height: 16),
+
+              /// Confirm
               TextFormField(
                 controller: confirmController,
                 obscureText: true,
@@ -76,10 +113,19 @@ class _CreatePasswordScreenState
                         ? "รหัสผ่านไม่ตรงกัน"
                         : null,
               ),
+
               const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: loading ? null : submit,
-                child: const Text("ยืนยัน"),
+
+              /// Button เต็มความกว้าง + loading
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submit,
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("ยืนยัน"),
+                ),
               ),
             ],
           ),

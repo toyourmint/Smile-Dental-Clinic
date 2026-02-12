@@ -1,9 +1,8 @@
-
-
 services:
   db:
     image: mysql:8.0
     container_name: clinic-db
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: clinic_db
@@ -16,19 +15,20 @@ services:
   backend:
     build: ./backend
     container_name: clinic-backend
-    command: npm run dev
+    command: npm start            # ✅ สำคัญมาก
     ports:
       - "3000:3000"
     volumes:
-      - ./backend:/app
+      - ./backend:/app              # ✅ สำคัญมาก
+      - /app/node_modules          # 👈 สำคัญมาก
     environment:
       DB_HOST: db
+      DB_PORT: 3306
       DB_USER: root
       DB_PASSWORD: root
       DB_NAME: clinic_db
     depends_on:
       - db
-
 
 volumes:
   mysql_data:
