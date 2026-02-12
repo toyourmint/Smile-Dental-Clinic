@@ -70,13 +70,18 @@ exports.register = async (req, res) => {
             [email, phone, 'PENDING', 'user', 0]
         );
         const userId = userResult.insertId;
+        
+        let annualBudget = 0;
+        if (treatment_right === 'social_security') {
+            annualBudget = 900;
+        }
 
         // 3. profile
         await connection.execute(
             `INSERT INTO user_profiles 
-            (user_id, citizen_id, title, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [userId, citizen_id, safeTitle, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine ]
+            (user_id, citizen_id, title, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, annual_budget)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, citizen_id, safeTitle, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, annualBudget]
         );
 
         // 4. address
