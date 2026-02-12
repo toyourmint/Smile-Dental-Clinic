@@ -86,6 +86,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final birthDate = TextEditingController();
   final phone = TextEditingController();
   final email = TextEditingController();
+  final allergies = TextEditingController();
+  final disease = TextEditingController();
+  final medicine = TextEditingController();
   final address = TextEditingController();
   final subDistrict = TextEditingController();
   final district = TextEditingController();
@@ -158,6 +161,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       "birth_date": birthDate.text.trim(),
       "rights": right?.api ?? "self_pay",
       "email": email.text.trim(),
+      "allergies": allergies.text.trim(),
+      "disease": disease.text.trim(),
+      "medicine": medicine.text.trim(),
       "phone": phone.text.trim(),
       "address_line": address.text.trim(),
       "subdistrict": subDistrict.text.trim(),
@@ -208,6 +214,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     birthDate.dispose();
     phone.dispose();
     email.dispose();
+    allergies.dispose();
+    disease.dispose();
+    medicine.dispose();
     address.dispose();
     subDistrict.dispose();
     district.dispose();
@@ -302,6 +311,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
 
               const SizedBox(height: 13),
+              
+              buildField("ประวัติการแพ้", allergies),
+              buildField("โรคประจำตัว", disease),
+              buildField("ยาประจำตัว", medicine),
 
               buildField("ที่อยู่", address),
               buildField("แขวง/ตำบล", subDistrict),
