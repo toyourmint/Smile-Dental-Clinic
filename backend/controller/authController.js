@@ -37,7 +37,8 @@ exports.register = async (req, res) => {
         citizen_id, title, first_name, last_name, birth_date, gender,
         email, phone,
         address_line, subdistrict, district, province, postal_code,
-        rights: treatment_right   // ✅ map ชื่อ
+        rights: treatment_right,
+        allergies, disease, medicine    // 👈 เพิ่มตรงนี้
     } = req.body;
     
     if (!email || !phone || !citizen_id || !first_name) {
@@ -73,9 +74,9 @@ exports.register = async (req, res) => {
         // 3. profile
         await connection.execute(
             `INSERT INTO user_profiles 
-            (user_id, citizen_id, title, first_name, last_name, birth_date, gender, treatment_right)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [userId, citizen_id, safeTitle, first_name, last_name, birth_date, gender, treatment_right]
+            (user_id, citizen_id, title, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, citizen_id, safeTitle, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine ]
         );
 
         // 4. address
