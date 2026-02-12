@@ -160,7 +160,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       "gender": gender?.api ?? "other",
       "birth_date": birthDate.text.trim(),
       "email": email.text.trim(),
-      "rights": right?.api ?? "self_pay",
       "allergies": allergies.text.trim(),
       "disease": disease.text.trim(),
       "medicine": medicine.text.trim(),
@@ -311,6 +310,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
 
               const SizedBox(height: 13),
+              
+              buildField("ประวัติการแพ้", allergies),
+              buildField("โรคประจำตัว", disease),
+              buildField("ยาประจำตัว", medicine),
 
               buildField("ประวัติการแพ้", allergies),
               buildField("โรคประจำตัว", disease),
