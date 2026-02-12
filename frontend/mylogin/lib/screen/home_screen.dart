@@ -2,15 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  // รับค่าชื่อผู้ใช้มาจาก MainWrapper
+  final String userName;
+
+  const HomeScreen({super.key, required this.userName});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // ข้อมูลสมมติ (ในอนาคตอาจดึงมาจาก API)
   final int _currentQueue = 1;
   final int _myQueue = 127;
+
+  // 1. เพิ่มฟังก์ชันเช็คเวลาปัจจุบัน
+  String _getGreeting() {
+    var hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) {
+      return "สวัสดีตอนเช้า,";
+    } else if (hour >= 12 && hour < 17) {
+      return "สวัสดีตอนบ่าย,";
+    } else if (hour >= 17 && hour < 20) {
+      return "สวัสดีตอนเย็น,";
+    } else {
+      return "สวัสดีครับ,"; // ช่วงดึก
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +48,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("สวัสดีตอนเช้า,",
+                        // 2. เรียกใช้ฟังก์ชัน _getGreeting() แทนข้อความตายตัว
+                        Text(_getGreeting(),
                             style: GoogleFonts.kanit(fontSize: 18, color: Colors.grey[600])),
-                        Text("คุณ มนต์แคน",
+                            
+                        // 3. ใช้ตัวแปร widget.userName เพื่อดึงชื่อที่ส่งเข้ามา
+                        Text("คุณ ${widget.userName}", 
                             style: GoogleFonts.kanit(
                                 fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87)),
                       ],
@@ -72,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   image: "https://i.pravatar.cc/150?img=12",
                   distance: "2.5 KM",
                 ),
+                // พื้นที่ด้านล่างเผื่อไว้เล็กน้อยให้ scroll ได้สุด
                 const SizedBox(height: 20),
               ],
             ),
@@ -81,14 +103,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- Widget ย่อยต่างๆ ---
+  // --- Widget ย่อยต่างๆ (โค้ดเหมือนเดิม) ---
 
   Widget _buildProfileAvatar() {
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
       ),
       child: const CircleAvatar(
         radius: 28,
@@ -126,12 +148,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 radius: 22,
               ),
               const SizedBox(width: 12),
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("คุณ มนต์แคน",
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                  Text("บริการ: ถอนฟัน",
+                  // 4. แก้ไขชื่อในการ์ดสีฟ้าให้ดึงจาก widget.userName ด้วยเช่นกัน
+                  Text("คุณ ${widget.userName}",
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                  const Text("บริการ: ถอนฟัน",
                       style: TextStyle(color: ColorUtils.whiteCC, fontSize: 13)),
                 ],
               ),

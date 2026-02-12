@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-// Import หน้าจอต่างๆ
 import 'package:mylogin/screen/home_screen.dart';
-// Import Component เมนูบาร์ที่เราแยกไฟล์ไว้
-import 'package:mylogin/widget/custom_bottom_nav.dart'; 
+import 'package:mylogin/widget/custom_bottom_nav.dart';
 
 class MainWrapper extends StatefulWidget {
-  const MainWrapper({super.key});
+  final String userName; // 1. เพิ่มตัวแปรรับชื่อ
+
+  // 2. เพิ่ม required this.userName ใน constructor
+  const MainWrapper({super.key, required this.userName});
 
   @override
   State<MainWrapper> createState() => _MainWrapperState();
@@ -13,29 +14,29 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   int _selectedIndex = 0;
+  
+  // 3. เปลี่ยน List เป็น late final เพื่อให้รอรับค่า widget.userName ได้
+  late final List<Widget> _screens;
 
-  // รายการหน้าจอทั้งหมด
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const Center(child: Text("หน้าปฏิทินนัดหมาย")), // เดี๋ยวเราจะมาแก้ตรงนี้ต่อ
-    const Center(child: Text("หน้าข้อความ")),
-    const Center(child: Text("หน้าโปรไฟล์")),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // 4. กำหนดค่าใน initState เพื่อดึงชื่อที่ส่งเข้ามาไปใช้
+    _screens = [
+      HomeScreen(userName: widget.userName), // ส่งชื่อต่อไปให้ Home
+      const Center(child: Text("หน้าปฏิทินนัดหมาย")),
+      const Center(child: Text("หน้าข้อความ")),
+      const Center(child: Text("หน้าโปรไฟล์")),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ส่วนเนื้อหาที่จะเปลี่ยนไปตามการกดเมนู
       body: _screens[_selectedIndex],
-
-      // ตรงนี้เรียกใช้ Widget ที่เราสร้างแยกไว้ สั้นลงและสะอาดตามาก!
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+        onTap: (index) => setState(() => _selectedIndex = index),
       ),
     );
   }

@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mylogin/screen/register_screen.dart';
 import 'package:mylogin/widget/logo.dart';
 import 'package:mylogin/services/auth_service.dart';
-
-import 'home_screen.dart';
+import 'package:mylogin/screen/main_wrapper.dart'; 
 import 'forget_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -49,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
         /// สำเร็จ → ไปหน้า Home
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => MainWrapper(userName: email)),
         );
       } else {
         /// error จาก backend
