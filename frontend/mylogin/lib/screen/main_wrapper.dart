@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mylogin/screen/calendar_screen.dart';
 import 'package:mylogin/screen/home_screen.dart';
 import 'package:mylogin/widget/custom_bottom_nav.dart';
 import 'notification_screen_mock.dart';
@@ -16,7 +17,7 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   int _selectedIndex = 0;
-  
+
   // 3. เปลี่ยน List เป็น late final เพื่อให้รอรับค่า widget.userName ได้
   late final List<Widget> _screens;
 
@@ -26,7 +27,7 @@ class _MainWrapperState extends State<MainWrapper> {
     // 4. กำหนดค่าใน initState เพื่อดึงชื่อที่ส่งเข้ามาไปใช้
     _screens = [
       HomeScreen(userName: widget.userName), // ส่งชื่อต่อไปให้ Home
-      const Center(child: Text("หน้าปฏิทินนัดหมาย")),
+      CalendarScreen(), 
       NotificationScreenMock(),
       ProfileScreen(),
     ];
