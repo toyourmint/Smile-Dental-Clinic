@@ -36,4 +36,7 @@ exports.getUserProfile = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
-        
+
+// exports.editUserProfile = async (req, res) => {
+    
+// };
