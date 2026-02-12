@@ -1,31 +1,21 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-//const pool = require('../config/db');
+const pool = require('../config/db');
 
 const mysql = require('mysql2/promise');
 const nodemailer = require('nodemailer');
 
 // let mockOtpDB = {};
 
-// ================= DB CONFIG =================
-const dbConfig = {
-    host: 'db',
-    port: 3306,
-    user: 'root',
-    password: 'root',
-    database: 'clinic_db',
-    charset: 'utf8mb4'
-};
-
 // ================= DB CONNECTION (สำคัญที่สุด) =================
-async function getConnection() {
-  const connection = await mysql.createConnection(dbConfig);
+// async function getConnection() {
+//   const connection = await mysql.createConnection(dbConfig);
 
-  // 🔥 บรรทัดนี้คือหัวใจของปัญหาภาษาไทย
-  await connection.query('SET NAMES utf8mb4');
+//   // 🔥 บรรทัดนี้คือหัวใจของปัญหาภาษาไทย
+//   await connection.query('SET NAMES utf8mb4');
 
-  return connection;
-}
+//   return connection;
+// }
 
 // ================= EMAIL CONFIG =================
 const transporter = nodemailer.createTransport({
@@ -57,7 +47,7 @@ exports.register = async (req, res) => {
       // ✅ กันค่าว่างจาก Flutter
   const safeTitle = title && title.trim() !== '' ? title : null;
 
-  const connection = await getConnection();
+  const connection = await pool.getConnection();
 
     try {
         await connection.beginTransaction();
@@ -70,7 +60,6 @@ exports.register = async (req, res) => {
 
         if (existing.length > 0) {
             await connection.rollback();
-            await connection.end();
             return res.status(400).json({ message: 'Email หรือเบอร์โทรนี้ลงทะเบียนไปแล้ว' });
         }
 
@@ -107,7 +96,6 @@ exports.register = async (req, res) => {
         );
 
         await connection.commit();
-        await connection.end();
 
         // 6. send email
         await transporter.sendMail({
@@ -121,9 +109,10 @@ exports.register = async (req, res) => {
 
     } catch (error) {
         await connection.rollback();
-        await connection.end();
         console.error(error);
         res.status(500).json({ message: 'เกิดข้อผิดพลาด' });
+    } finally{
+        connection.release();
     }
 };
 
@@ -138,15 +127,11 @@ exports.login = async (req, res) => {
     }
 
     try {
-        const connection = await getConnection();
 
-
-        const [rows] = await connection.execute(
+        const [rows] = await pool.execute(
             'SELECT * FROM users WHERE (email = ? OR phone = ?) AND is_active = 1',
             [loginIdentifier, loginIdentifier]
         );
-
-        await connection.end();
 
         if (rows.length === 0) {
             return res.status(401).json({
@@ -206,9 +191,6 @@ exports.requestPasswordReset = async (req, res) => {
     }
 
     try {
-        const connection = await getConnection();
-
-
         const [users] = await connection.execute(
             'SELECT id FROM users WHERE email = ?',
             [email]
@@ -223,17 +205,15 @@ exports.requestPasswordReset = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-        await connection.execute(
+        await pool.execute(
             'UPDATE user_otps SET is_used = 1 WHERE user_id = ?',
             [userId]
         );
 
-        await connection.execute(
+        await pool.execute(
             'INSERT INTO user_otps (user_id, otp_code, expires_at, is_used) VALUES (?, ?, ?, 0)',
             [userId, otp, expiresAt]
         );
-
-        await connection.end();
 
         await transporter.sendMail({
             from: 'Smile Dental Admin',
@@ -257,28 +237,22 @@ exports.verifyOtp = async (req, res) => {
     const { email, otp } = req.body;
 
     try {
-        const connection = await getConnection();
-
-
-        const [users] = await connection.execute(
+        const [users] = await pool.execute(
             'SELECT id FROM users WHERE email = ?',
             [email]
         );
 
         if (users.length === 0) {
-            await connection.end();
             return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
         }
 
         const userId = users[0].id;
 
-        const [rows] = await connection.execute(
+        const [rows] = await pool.execute(
             `SELECT id FROM user_otps
              WHERE user_id = ? AND otp_code = ? AND is_used = 0 AND expires_at > NOW()`,
             [userId, otp]
         );
-
-        await connection.end();
 
         if (rows.length === 0) {
             return res.status(400).json({ message: 'OTP ไม่ถูกต้องหรือหมดอายุ' });
@@ -304,29 +278,24 @@ exports.setPassword = async (req, res) => {
     }
 
     try {
-        const connection = await getConnection();
-
-
-        const [users] = await connection.execute(
+        const [users] = await pool.execute(
             'SELECT id FROM users WHERE email = ?',
             [email]
         );
 
         if (users.length === 0) {
-            await connection.end();
             return res.status(404).json({ message: 'User not found' });
         }
 
         const userId = users[0].id;
 
-        const [otpRows] = await connection.execute(
+        const [otpRows] = await pool.execute(
             `SELECT id FROM user_otps
              WHERE user_id = ? AND otp_code = ? AND is_used = 0 AND expires_at > NOW()`,
             [userId, otp]
         );
 
         if (otpRows.length === 0) {
-            await connection.end();
             return res.status(400).json({
                 message: 'รหัส OTP ไม่ถูกต้องหรือหมดอายุ'
             });
@@ -334,17 +303,15 @@ exports.setPassword = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        await connection.execute(
+        await pool.execute(
             'UPDATE users SET password = ?, is_active = 1 WHERE id = ?',
             [hashedPassword, userId]
         );
 
-        await connection.execute(
+        await pool.execute(
             'UPDATE user_otps SET is_used = 1 WHERE id = ?',
             [otpRows[0].id]
         );
-
-        await connection.end();
 
         res.json({ message: 'ตั้งรหัสผ่านเรียบร้อยแล้ว' });
 
@@ -361,16 +328,12 @@ exports.resendOtp = async (req, res) => {
     }
 
     try {
-        const connection = await getConnection();
-
-
-        const [users] = await connection.execute(
+        const [users] = await pool.execute(
             'SELECT id FROM users WHERE email = ?',
             [email]
         );
 
         if (users.length === 0) {
-            await connection.end();
             return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
         }
 
@@ -379,17 +342,15 @@ exports.resendOtp = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-        await connection.execute(
+        await pool.execute(
             'UPDATE user_otps SET is_used = 1 WHERE user_id = ? AND is_used = 0',
             [userId]
         );
 
-        await connection.execute(
+        await pool.execute(
             'INSERT INTO user_otps (user_id, otp_code, expires_at, is_used) VALUES (?, ?, ?, 0)',
             [userId, otp, expiresAt]
         );
-
-        await connection.end();
 
         await transporter.sendMail({
             from: 'Smile Dental Admin',
