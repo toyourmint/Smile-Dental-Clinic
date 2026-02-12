@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mylogin/screen/home_screen.dart';
 import 'package:mylogin/widget/custom_bottom_nav.dart';
+import 'notification_screen_mock.dart';
+import 'profile_screen.dart';
 
 class MainWrapper extends StatefulWidget {
   final String userName; // 1. เพิ่มตัวแปรรับชื่อ
@@ -25,8 +27,8 @@ class _MainWrapperState extends State<MainWrapper> {
     _screens = [
       HomeScreen(userName: widget.userName), // ส่งชื่อต่อไปให้ Home
       const Center(child: Text("หน้าปฏิทินนัดหมาย")),
-      const Center(child: Text("หน้าข้อความ")),
-      const Center(child: Text("หน้าโปรไฟล์")),
+      NotificationScreenMock(),
+      ProfileScreen(),
     ];
   }
 
