@@ -191,13 +191,12 @@ exports.requestPasswordReset = async (req, res) => {
     }
 
     try {
-        const [users] = await connection.execute(
+        const [users] = await pool.execute(
             'SELECT id FROM users WHERE email = ?',
             [email]
         );
 
         if (users.length === 0) {
-            await connection.end();
             return res.status(404).json({ message: 'ไม่พบอีเมลนี้ในระบบ' });
         }
 
