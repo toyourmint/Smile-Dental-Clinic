@@ -315,10 +315,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               buildField("โรคประจำตัว", disease),
               buildField("ยาประจำตัว", medicine),
 
-              buildField("ประวัติการแพ้", allergies),
-              buildField("โรคประจำตัว", disease),
-              buildField("ยาประจำตัว", medicine),
-
               buildField("ที่อยู่", address),
               buildField("แขวง/ตำบล", subDistrict),
               buildField("เขต/อำเภอ", district),
