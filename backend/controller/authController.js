@@ -269,20 +269,13 @@ exports.verifyOtp = async (req, res) => {
     const { email, otp } = req.body;
 
     try {
-        const [users] = await pool.execute(
-            'SELECT id FROM users WHERE email = ?',
-            [email]
-        );
-
-        if (users.length === 0) {
-            return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
-        }
+        const [users] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+        if (users.length === 0) return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
 
         const userId = users[0].id;
 
         const [rows] = await pool.execute(
-            `SELECT id FROM user_otps
-             WHERE user_id = ? AND otp_code = ? AND is_used = 0 AND expires_at > NOW()`,
+            `SELECT id FROM user_otps WHERE user_id = ? AND otp_code = ? AND is_used = 0 AND expires_at > NOW()`,
             [userId, otp]
         );
 
@@ -290,7 +283,13 @@ exports.verifyOtp = async (req, res) => {
             return res.status(400).json({ message: 'OTP ไม่ถูกต้องหรือหมดอายุ' });
         }
 
-        res.json({ message: 'OTP ถูกต้อง' });
+        // 🔥 เพิ่มบรรทัดนี้: ต่ออายุ OTP นี้ออกไปอีก 10 นาที นับจากตอนที่กรอกถูก
+        await pool.execute(
+            `UPDATE user_otps SET expires_at = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE id = ?`,
+            [rows[0].id]
+        );
+
+        res.json({ message: 'OTP ถูกต้องและได้ขยายเวลาสำหรับตั้งรหัสผ่านแล้ว' });
 
     } catch (error) {
         res.status(500).json({ message: 'Error checking OTP' });
