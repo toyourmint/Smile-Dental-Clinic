@@ -11,6 +11,7 @@ exports.getUserProfile = async (req, res) => {
             p.birth_date AS birth_date,
             u.phone AS phone,
             u.email AS email,
+            u.role AS role,
             p.allergies AS allergies,
             p.disease AS disease,
             p.medicine AS medicine,
