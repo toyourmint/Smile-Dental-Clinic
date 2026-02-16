@@ -32,7 +32,7 @@ const transporter = nodemailer.createTransport({
 
 
 exports.register = async (req, res) => {
-    
+
     const {
         citizen_id, title, first_name, last_name, birth_date, gender,
         email, phone,
@@ -40,15 +40,15 @@ exports.register = async (req, res) => {
         rights: treatment_right,
         allergies, disease, medicine    // 👈 เพิ่มตรงนี้
     } = req.body;
-    
+
     if (!email || !phone || !citizen_id || !first_name) {
         return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
     }
 
-      // ✅ กันค่าว่างจาก Flutter
-  const safeTitle = title && title.trim() !== '' ? title : null;
+    // ✅ กันค่าว่างจาก Flutter
+    const safeTitle = title && title.trim() !== '' ? title : null;
 
-  const connection = await pool.getConnection();
+    const connection = await pool.getConnection();
 
     try {
         await connection.beginTransaction();
@@ -70,7 +70,7 @@ exports.register = async (req, res) => {
             [email, phone, 'PENDING', 'user', 0]
         );
         const userId = userResult.insertId;
-        
+
         let annualBudget = 0;
         if (treatment_right === 'social_security') {
             annualBudget = 900;
@@ -144,7 +144,7 @@ exports.register = async (req, res) => {
         await connection.rollback();
         console.error(error);
         res.status(500).json({ message: 'เกิดข้อผิดพลาด' });
-    } finally{
+    } finally {
         connection.release();
     }
 };
@@ -163,10 +163,10 @@ exports.addUserByAdmin = async (req, res) => {
         return res.status(400).json({ message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
     }
 
-    
+    let connection;
 
     try {
-        const connection = await pool.getConnection();
+        connection = await pool.getConnection();
         await connection.beginTransaction();
 
         // 2. ตรวจสอบเบอร์โทรซ้ำ (ใช้ phone ที่รับมาตรงๆ)
@@ -224,18 +224,30 @@ exports.addUserByAdmin = async (req, res) => {
 
         await connection.commit();
 
-        res.status(201).json({ 
+        res.status(201).json({
+            success: true,
             message: 'เพิ่มข้อมูลผู้ป่วยสำเร็จ',
             hn: generatedHn,
             password_hint: 'รหัสผ่านเริ่มต้นคือเบอร์โทรศัพท์'
         });
 
+
     } catch (error) {
-        await connection.rollback();
-        console.error(error);
-        res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' });
+        // 💡 แก้จุดที่ 3: เช็คก่อนว่ามี connection หรือยัง ถึงค่อยสั่ง rollback
+        if (connection) {
+            await connection.rollback();
+        }
+        console.error("Add User Error:", error);
+        res.status(500).json({
+            success: false,
+            message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
+        });
+
     } finally {
-        connection.release();
+        // 💡 แก้จุดที่ 4: เช็คก่อนว่ามี connection หรือยัง ถึงค่อย release
+        if (connection) {
+            connection.release();
+        }
     }
 };
 

@@ -13,9 +13,9 @@ enum TreatmentRight { goldCard, government, socialSecurity, selfPay }
 extension GenderExt on Gender {
   String get api {
     switch (this) {
-      case Gender.male: return 'M'; 
-      case Gender.female: return 'F';
-      case Gender.other: return 'O';
+      case Gender.male: return 'male'; 
+      case Gender.female: return 'female';
+      case Gender.other: return 'other';
     }
   }
 
@@ -178,8 +178,11 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
     });
   }
 
-  Future<void> _saveToDatabase() async {
-    // 1. ตรวจสอบข้อมูลที่จำเป็น
+Future<void> _saveToDatabase() async {
+    // 1. ป้องกันการกดซ้อน
+    if (_isLoading) return;
+
+    // 2. ตรวจสอบข้อมูลเบื้องต้น
     if (_idCardCtrl.text.trim().isEmpty || 
         _firstNameCtrl.text.trim().isEmpty || 
         _lastNameCtrl.text.trim().isEmpty ||
@@ -190,17 +193,9 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
       return; 
     }
 
-    if (_idCardCtrl.text.trim().length != 13) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกเลขบัตรประจำตัวประชาชนให้ครบ 13 หลัก'), backgroundColor: Colors.redAccent),
-      );
-      return; 
-    }
-
     setState(() => _isLoading = true);
 
     try {
-      // 💡 เรียกใช้ API สำหรับ Admin โดยเฉพาะ (ไม่ต้องรอ OTP)
       final url = Uri.parse('http://localhost:3000/api/auth/addUser'); 
       
       final response = await http.post(
@@ -212,7 +207,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
           "first_name": _firstNameCtrl.text.trim(),
           "last_name": _lastNameCtrl.text.trim(),
           "birth_date": _birthDateCtrl.text.trim(),
-          "gender": gender?.api ?? "O", 
+          "gender": gender?.api ?? "other", 
           "email": _emailCtrl.text.trim(),
           "phone": _phoneCtrl.text.trim(),
           "address_line": _addressCtrl.text.trim(),
@@ -227,33 +222,63 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
         }),
       );
 
+      // --- กรณีบันทึกสำเร็จ (200 หรือ 201) ---
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
-        final responseData = jsonDecode(response.body);
-        final hn = responseData['hn'] ?? ''; // รับรหัส HN ที่ Backend Gen ให้
         
+        // อ่านข้อมูลแบบ Dynamic เพื่อป้องกัน Type Error
+        final dynamic responseData = jsonDecode(response.body);
+        final String hn = (responseData is Map && responseData['hn'] != null) 
+                          ? responseData['hn'].toString() 
+                          : '';
+        
+        // โชว์แจ้งเตือนสีเขียวก่อน
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('เพิ่มข้อมูลผู้ป่วยสำเร็จ ${hn.isNotEmpty ? "(รหัสประจำตัว: $hn)" : ""}'), 
             backgroundColor: Colors.green
           ),
         );
-        Navigator.of(context).pop(true); // ปิด Dialog
-      } else {
+
+        // ✅ ปิดหน้าต่างทันที และจบการทำงาน
+        Navigator.of(context).pop(true);
+        return; 
+      } 
+      
+      // --- กรณีบันทึกไม่สำเร็จ (Error จากเซิร์ฟเวอร์) ---
+      else {
         if (!mounted) return;
-        final errorData = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorData['message'] ?? 'เกิดข้อผิดพลาด'), backgroundColor: Colors.redAccent),
-        );
+        setState(() => _isLoading = false); // หยุดโหลดเพื่อให้แก้ไขข้อมูลได้
+
+        try {
+          final dynamic errorData = jsonDecode(response.body);
+          String errMsg = "เกิดข้อผิดพลาด";
+          if (errorData is Map && errorData['message'] != null) {
+            errMsg = errorData['message'].toString();
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errMsg), backgroundColor: Colors.redAccent),
+          );
+        } catch (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error ${response.statusCode}: เซิร์ฟเวอร์ขัดข้อง'), backgroundColor: Colors.redAccent),
+          );
+        }
       }
+
     } catch (e) {
+      // --- กรณีเกิด Exception (เช่น เน็ตหลุด หรือ UI พัง) ---
       if (!mounted) return;
+      setState(() => _isLoading = false);
+      
+      // ถ้า Error เป็นเรื่อง UI ล็อค ให้ข้ามการโชว์สีแดงไปเลย
+      if (e.toString().contains('!_debugLocked')) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'), backgroundColor: Colors.red),
+        SnackBar(content: Text('การเชื่อมต่อมีปัญหา: ${e.toString()}'), backgroundColor: Colors.red),
       );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
+    // 💡 ลบบล็อก finally ออกไปเลยครับ เพื่อความปลอดภัยสูงสุด
   }
 
   @override
