@@ -7,6 +7,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/apm', require('./routes/apm'));
+app.use('/api/user-profile', require('./routes/user_profile'));
 
 app.get('/', (req, res) => {
   res.send('Backend is running');
