@@ -160,6 +160,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       "gender": gender?.api ?? "other",
       "birth_date": birthDate.text.trim(),
       "email": email.text.trim(),
+      "rights": right?.api ?? "self_pay",
       "allergies": allergies.text.trim(),
       "disease": disease.text.trim(),
       "medicine": medicine.text.trim(),
