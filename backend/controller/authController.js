@@ -76,12 +76,39 @@ exports.register = async (req, res) => {
             annualBudget = 900;
         }
 
+        // ==========================================
+        // 🔥 GEN HN (SD-YYXXXX)
+        // ==========================================
+        const currentYear = new Date().getFullYear().toString().slice(-2); // ดึงปีปัจจุบัน (เช่น '26' จาก 2026)
+        const hnPrefix = `SD-${currentYear}`;
+
+        // ดึงเลข HN ล่าสุดของปีนี้ (ใช้ FOR UPDATE เพื่อป้องกันคนกดสมัครพร้อมกันแล้วได้เลขซ้ำ)
+        const [lastHnResult] = await connection.execute(
+            `SELECT hn FROM user_profiles WHERE hn LIKE ? ORDER BY hn DESC LIMIT 1 FOR UPDATE`,
+            [`${hnPrefix}%`]
+        );
+
+        let nextNumber = 1; // เริ่มต้นที่ 1 ถ้ายังไม่มีข้อมูลในปีนั้น
+        if (lastHnResult.length > 0 && lastHnResult[0].hn) {
+            const lastHn = lastHnResult[0].hn; // เช่น 'SD-260001'
+            // ตัดเอาเฉพาะ 4 ตัวท้ายมาแปลงเป็นตัวเลข แล้วบวก 1
+            const lastNumber = parseInt(lastHn.slice(-4), 10);
+            if (!isNaN(lastNumber)) {
+                nextNumber = lastNumber + 1;
+            }
+        }
+
+        // เติมเลขศูนย์ข้างหน้าให้ครบ 4 หลัก (เช่น 1 -> '0001')
+        const paddedNumber = nextNumber.toString().padStart(4, '0');
+        const generatedHn = `${hnPrefix}${paddedNumber}`; // จะได้ 'SD-260001'
+        // ==========================================
+
         // 3. profile
         await connection.execute(
             `INSERT INTO user_profiles 
-            (user_id, citizen_id, title, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, annual_budget)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [userId, citizen_id, safeTitle, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, annualBudget]
+            (user_id, citizen_id, title, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, annual_budget, hn)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, citizen_id, safeTitle, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, annualBudget, generatedHn]
         );
 
         // 4. address
