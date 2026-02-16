@@ -257,7 +257,7 @@ class _ProfileScreenFullState extends State<ProfileScreenFull>
       children: [
         _field("ชื่อ - นามสกุล",
             "${user!.firstName} ${user!.lastName}"),
-        _field("เบอร์โทร", user!.phone),
+        _field("เบอร์โทรศัพท์", user!.phone),
         _field("อายุ",
             calculateAge(user!.birthDate) == 0
                 ? ""
