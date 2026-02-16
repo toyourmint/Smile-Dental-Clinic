@@ -28,30 +28,38 @@ class _ProfileScreenState extends State<ProfileScreen>
   /// 🔹 เรียก API
   //////////////////////////////////////////////////////
   Future<void> fetchUser() async {
-    final url = Uri.parse("http://10.0.2.2:3000/api/user/getprofiles");
-    // 🔥 มือถือจริงให้เปลี่ยนเป็น IP เครื่องคอม
+  final url = Uri.parse("http://10.0.2.2:3000/api/user/getprofiles");
 
-    try {
-      final response = await http.get(url);
+  try {
+    final response = await http.get(url);
 
-      if (response.statusCode == 200) {
-        setState(() {
-          user = json.decode(response.body);
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          errorMessage = "โหลดข้อมูลไม่สำเร็จ";
-          isLoading = false;
-        });
-      }
-    } catch (e) {
+    if (response.statusCode == 200) {
+
+      final decoded = utf8.decode(response.bodyBytes); // ⭐ แก้ไทยเพี้ยน
+      print(decoded);
+
+      final data = json.decode(decoded);
+
       setState(() {
-        errorMessage = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
+        user = data['profiles'][0];
+        isLoading = false;
+      });
+
+    } else {
+      setState(() {
+        errorMessage = "โหลดข้อมูลไม่สำเร็จ";
         isLoading = false;
       });
     }
+  } catch (e) {
+    setState(() {
+      errorMessage = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
+      isLoading = false;
+    });
   }
+}
+
+
 
   //////////////////////////////////////////////////////
   /// 🔹 คำนวณอายุ
