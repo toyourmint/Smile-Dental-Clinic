@@ -25,8 +25,12 @@ class CreatePasswordScreenState extends State<CreatePasswordScreen> {
 
   bool _isLoading = false;
 
+  // ✅ เพิ่มตัวแปรเปิด/ปิดตา
+  bool _obscurePass = true;
+  bool _obscureConfirm = true;
+
   /// =========================
-  /// SUBMIT (Backend แบบโค้ด 2)
+  /// SUBMIT
   /// =========================
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -52,9 +56,7 @@ class CreatePasswordScreenState extends State<CreatePasswordScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              result['body']['message'] ?? "เกิดข้อผิดพลาด",
-            ),
+            content: Text(result['body']['message'] ?? "เกิดข้อผิดพลาด"),
           ),
         );
       }
@@ -68,31 +70,44 @@ class CreatePasswordScreenState extends State<CreatePasswordScreen> {
   }
 
   /// =========================
-  /// UI (แบบโค้ดแรก เรียบ ๆ)
+  /// UI
   /// =========================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("สร้างรหัสผ่าน")),
-
       body: Padding(
         padding: const EdgeInsets.all(24),
-
         child: Form(
           key: _formKey,
-
           child: Column(
             children: [
-              // const SizedBox(height: 20),
               const Center(child: LogoWidget()),
               const SizedBox(height: 30),
+
+              /// =========================
               /// Password
+              /// =========================
               TextFormField(
                 controller: passController,
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: _obscurePass,
+                decoration: InputDecoration(
                   labelText: "รหัสผ่าน",
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
+
+                  // ✅ ปุ่มตา
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePass
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePass = !_obscurePass;
+                      });
+                    },
+                  ),
                 ),
                 validator: (v) =>
                     v!.length < 6 ? "อย่างน้อย 6 ตัวอักษร" : null,
@@ -100,23 +115,37 @@ class CreatePasswordScreenState extends State<CreatePasswordScreen> {
 
               const SizedBox(height: 16),
 
+              /// =========================
               /// Confirm
+              /// =========================
               TextFormField(
                 controller: confirmController,
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: _obscureConfirm,
+                decoration: InputDecoration(
                   labelText: "ยืนยันรหัสผ่าน",
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
+
+                  // ✅ ปุ่มตา
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirm
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirm = !_obscureConfirm;
+                      });
+                    },
+                  ),
                 ),
                 validator: (v) =>
-                    v != passController.text
-                        ? "รหัสผ่านไม่ตรงกัน"
-                        : null,
+                    v != passController.text ? "รหัสผ่านไม่ตรงกัน" : null,
               ),
 
               const SizedBox(height: 30),
 
-              /// Button เต็มความกว้าง + loading
+              /// Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
