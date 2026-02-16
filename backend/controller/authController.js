@@ -149,6 +149,96 @@ exports.register = async (req, res) => {
     }
 };
 
+exports.addUserByAdmin = async (req, res) => {
+    const {
+        citizen_id, title, first_name, last_name, birth_date, gender,
+        email, phone,
+        address_line, subdistrict, district, province, postal_code,
+        rights: treatment_right,
+        allergies, disease, medicine
+    } = req.body;
+
+    // 1. Validation เบื้องต้น
+    if (!citizen_id || !first_name || !last_name || !phone) {
+        return res.status(400).json({ message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // 2. ตรวจสอบเบอร์โทรซ้ำ (ใช้ phone ที่รับมาตรงๆ)
+        const [existing] = await connection.execute(
+            'SELECT id FROM users WHERE phone = ?',
+            [phone]
+        );
+
+        if (existing.length > 0) {
+            await connection.rollback();
+            return res.status(400).json({ message: 'เบอร์โทรศัพท์นี้มีในระบบแล้ว' });
+        }
+
+        // 3. Hash รหัสผ่านโดยใช้เบอร์โทรศัพท์เป็นต้นแบบ
+        const hashedPassword = await bcrypt.hash(phone, 10);
+
+        // 4. บันทึกลงตาราง users และเปิดใช้งานทันที
+        const [userResult] = await connection.execute(
+            'INSERT INTO users (email, phone, password, role, is_active) VALUES (?, ?, ?, ?, ?)',
+            [email || null, phone, hashedPassword, 'user', 1]
+        );
+        const userId = userResult.insertId;
+
+        // 5. จัดการ Logic เลข HN (SD-YYXXXX)
+        const currentYear = new Date().getFullYear().toString().slice(-2);
+        const hnPrefix = `SD-${currentYear}`;
+
+        const [lastHnResult] = await connection.execute(
+            `SELECT hn FROM user_profiles WHERE hn LIKE ? ORDER BY hn DESC LIMIT 1 FOR UPDATE`,
+            [`${hnPrefix}%`]
+        );
+
+        let nextNumber = 1;
+        if (lastHnResult.length > 0 && lastHnResult[0].hn) {
+            const lastNumber = parseInt(lastHnResult[0].hn.slice(-4), 10);
+            if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+        }
+        const generatedHn = `${hnPrefix}${nextNumber.toString().padStart(4, '0')}`;
+
+        // 6. บันทึก User Profile
+        const safeTitle = title && title.trim() !== '' ? title : null;
+        await connection.execute(
+            `INSERT INTO user_profiles 
+            (user_id, citizen_id, title, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, annual_budget, hn)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, citizen_id, safeTitle, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, (treatment_right === 'social_security' ? 900 : 0), generatedHn]
+        );
+
+        // 7. บันทึก Address
+        await connection.execute(
+            `INSERT INTO user_addresses (user_id, address_line, subdistrict, district, province, postal_code)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+            [userId, address_line, subdistrict, district, province, postal_code]
+        );
+
+        await connection.commit();
+
+        res.status(201).json({ 
+            message: 'เพิ่มข้อมูลผู้ป่วยสำเร็จ',
+            hn: generatedHn,
+            password_hint: 'รหัสผ่านเริ่มต้นคือเบอร์โทรศัพท์'
+        });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error(error);
+        res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' });
+    } finally {
+        connection.release();
+    }
+};
+
+
 // =================================================
 // LOGIN  ✅ FIX bcrypt + PENDING
 // =================================================

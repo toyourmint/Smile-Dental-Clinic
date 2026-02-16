@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -11,41 +13,57 @@ class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // ===============================
-  // 🔹 Mock Data (แทน Database)
-  // ===============================
-  final Map<String, dynamic> user = {
-    "first_name": "มนต์แคน",
-    "last_name": "ร้องเพลง",
-    "phone": "012-345-6789",
-    "birth_date": "2000-12-25",
-
-    // address
-    "house_no": "10/2",
-    "subdistrict": "บางระวัง",
-    "district": "บางพลู",
-    "province": "กรุงเทพมหานคร",
-    "postcode": "10520",
-
-    // medical
-    "disease": "-",
-    "allergy": "แพ้กุ้ง",
-    "medicine": "-",
-
-    // benefit
-    "right": "สิทธิประกันสังคม",
-    "limit": "900"
-  };
+  Map<String, dynamic>? user;
+  bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    fetchUser();
   }
 
-  // ===============================
-  // 🔹 คำนวณอายุ
-  // ===============================
+  //////////////////////////////////////////////////////
+  /// 🔹 เรียก API
+  //////////////////////////////////////////////////////
+  Future<void> fetchUser() async {
+  final url = Uri.parse("http://10.0.2.2:3000/api/user/getprofiles");
+
+  try {
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+
+      final decoded = utf8.decode(response.bodyBytes); // ⭐ แก้ไทยเพี้ยน
+      print(decoded);
+
+      final data = json.decode(decoded);
+
+      setState(() {
+        user = data['profiles'][0];
+        isLoading = false;
+      });
+
+    } else {
+      setState(() {
+        errorMessage = "โหลดข้อมูลไม่สำเร็จ";
+        isLoading = false;
+      });
+    }
+  } catch (e) {
+    setState(() {
+      errorMessage = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
+      isLoading = false;
+    });
+  }
+}
+
+
+
+  //////////////////////////////////////////////////////
+  /// 🔹 คำนวณอายุ
+  //////////////////////////////////////////////////////
   int calculateAge(String birth) {
     DateTime b = DateTime.parse(birth);
     DateTime today = DateTime.now();
@@ -58,9 +76,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     return age;
   }
 
-  // ===============================
-  // 🔹 format วันไทย
-  // ===============================
+  //////////////////////////////////////////////////////
+  /// 🔹 format วันไทย
+  //////////////////////////////////////////////////////
   String formatDate(String birth) {
     DateTime d = DateTime.parse(birth);
     return "${d.day} ${_monthThai(d.month)} ${d.year + 543}";
@@ -85,20 +103,20 @@ class _ProfileScreenState extends State<ProfileScreen>
     return months[m];
   }
 
-  // ===============================
-  // 🔹 รวมที่อยู่
-  // ===============================
+  //////////////////////////////////////////////////////
+  /// 🔹 รวมที่อยู่
+  //////////////////////////////////////////////////////
   String fullAddress() {
-    return "${user['house_no']} "
-        "${user['subdistrict']} "
-        "${user['district']} "
-        "${user['province']} "
-        "${user['postcode']}";
+    return "${user!['address_line']} "
+        "${user!['subdistrict']} "
+        "${user!['district']} "
+        "${user!['province']} "
+        "${user!['postal_code']}";
   }
 
-  // ===============================
-  // 🔹 UI
-  // ===============================
+  //////////////////////////////////////////////////////
+  /// 🔹 UI
+  //////////////////////////////////////////////////////
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,105 +125,108 @@ class _ProfileScreenState extends State<ProfileScreen>
         title: const Text("ข้อมูลส่วนตัว"),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 16),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : errorMessage != null
+              ? Center(child: Text(errorMessage!))
+              : Column(
+                  children: [
+                    const SizedBox(height: 16),
 
-          // ===== รูปโปรไฟล์ =====
-          const CircleAvatar(
-            radius: 55,
-            backgroundImage: NetworkImage(
-                "https://i.pravatar.cc/300"), // ใส่รูปจริงทีหลังได้
-          ),
+                    const CircleAvatar(
+                      radius: 55,
+                      backgroundImage:
+                          NetworkImage("https://i.pravatar.cc/300"),
+                    ),
 
-          const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-          Text(
-            "คุณ ${user['first_name']} ${user['last_name']}",
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+                    Text(
+                      "คุณ ${user!['first_name']} ${user!['last_name']}",
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
 
-          const SizedBox(height: 6),
-          const Text("รหัสผู้ป่วย : HN260001"),
+                    const SizedBox(height: 6),
+                    Text("Citizen ID : ${user!['citizen_id'] ?? '-'}"),
 
-          const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-          // ===============================
-          // 🔵 TabBar
-          // ===============================
-          TabBar(
-            controller: _tabController,
-            labelColor: Colors.blue,
-            unselectedLabelColor: Colors.grey,
-            tabs: const [
-              Tab(text: "ข้อมูลส่วนตัว"),
-              Tab(text: "ข้อมูลทางการแพทย์"),
-              Tab(text: "สิทธิประโยชน์"),
-            ],
-          ),
+                    TabBar(
+                      controller: _tabController,
+                      labelColor: Colors.blue,
+                      unselectedLabelColor: Colors.grey,
+                      tabs: const [
+                        Tab(text: "ข้อมูลส่วนตัว"),
+                        Tab(text: "ข้อมูลทางการแพทย์"),
+                        Tab(text: "สิทธิประโยชน์"),
+                      ],
+                    ),
 
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _personalTab(),
-                _medicalTab(),
-                _benefitTab(),
-              ],
-            ),
-          ),
-        ],
-      ),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _personalTab(),
+                          _medicalTab(),
+                          _benefitTab(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
     );
   }
 
-  ////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////
   /// TAB 1 : ข้อมูลส่วนตัว
-  ////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////
   Widget _personalTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         _field("ชื่อ - นามสกุล",
-            "${user['first_name']} ${user['last_name']}"),
-        _field("เบอร์โทรศัพท์", user['phone']),
-        _field("วัน/เดือน/ปี เกิด", formatDate(user['birth_date'])),
-        _field("อายุ (ปี)", calculateAge(user['birth_date']).toString()),
+            "${user!['first_name']} ${user!['last_name']}"),
+        _field("เบอร์โทรศัพท์", user!['phone'] ?? '-'),
+        _field("วันเกิด", formatDate(user!['birth_date'])),
+        _field("อายุ", calculateAge(user!['birth_date']).toString()),
         _field("ที่อยู่", fullAddress()),
+        _field("อีเมล", user!['email'] ?? '-'),
       ],
     );
   }
 
-  ////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////
   /// TAB 2 : ข้อมูลทางการแพทย์
-  ////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////
   Widget _medicalTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _field("โรคประจำตัว", user['disease']),
-        _field("ประวัติการแพ้", user['allergy']),
-        _field("ยาประจำตัว", user['medicine']),
+        _field("โรคประจำตัว", user!['disease'] ?? '-'),
+        _field("ประวัติการแพ้", user!['allergies'] ?? '-'),
+        _field("ยาประจำตัว", user!['medicine'] ?? '-'),
       ],
     );
   }
 
-  ////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////
   /// TAB 3 : สิทธิประโยชน์
-  ////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////
   Widget _benefitTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _field("สิทธิการรักษา", user['right']),
-        _field("วงเงิน/ค่าใช้จ่าย", user['limit']),
+        _field("สิทธิการรักษา", user!['treatment_right'] ?? '-'),
+        _field("วงเงินต่อปี",
+            user!['annual_budget']?.toString() ?? '-'),
       ],
     );
   }
 
-  ////////////////////////////////////////////////////////
-  /// กล่อง input style เหมือนรูป
-  ////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////
+  /// 🔹 กล่องแสดงข้อมูล
+  //////////////////////////////////////////////////////
   Widget _field(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -216,7 +237,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           const SizedBox(height: 6),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.blue),

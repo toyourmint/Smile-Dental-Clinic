@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; 
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:mylogin/screen/splash_screen.dart'; // Import หน้า Splash เข้ามา
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('th');
   runApp(const MyApp());
 }
 

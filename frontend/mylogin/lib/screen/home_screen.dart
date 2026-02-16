@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mylogin/screen/appointment_modal.dart';
+import '../services/appointment_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  // รับค่าชื่อผู้ใช้มาจาก MainWrapper
   final String userName;
 
   const HomeScreen({super.key, required this.userName});
@@ -12,28 +13,42 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // ข้อมูลสมมติ (ในอนาคตอาจดึงมาจาก API)
-  final int _currentQueue = 1;
-  final int _myQueue = 127;
+  int currentClinicQueue = 0;
+  bool isLoading = false;
 
-  // 1. เพิ่มฟังก์ชันเช็คเวลาปัจจุบัน
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => isLoading = true);
+    final q = await AppointmentService.getCurrentQueueFromClinic();
+    if (mounted) {
+      setState(() {
+        currentClinicQueue = q;
+        isLoading = false;
+      });
+    }
+  }
+
   String _getGreeting() {
     var hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) {
-      return "สวัสดีตอนเช้า,";
-    } else if (hour >= 12 && hour < 17) {
-      return "สวัสดีตอนบ่าย,";
-    } else if (hour >= 17 && hour < 20) {
-      return "สวัสดีตอนเย็น,";
-    } else {
-      return "สวัสดีครับ,"; // ช่วงดึก
-    }
+    if (hour >= 5 && hour < 12) return "สวัสดีตอนเช้า,";
+    if (hour >= 12 && hour < 17) return "สวัสดีตอนบ่าย,";
+    if (hour >= 17 && hour < 20) return "สวัสดีตอนเย็น,";
+    return "สวัสดีครับ,";
   }
 
   @override
   Widget build(BuildContext context) {
+    final AppointmentModel? latestBooking = myAppointments.isNotEmpty
+        ? myAppointments.last
+        : null;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), 
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -41,59 +56,71 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Header
+                // Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 2. เรียกใช้ฟังก์ชัน _getGreeting() แทนข้อความตายตัว
-                        Text(_getGreeting(),
-                            style: GoogleFonts.kanit(fontSize: 18, color: Colors.grey[600])),
-                            
-                        // 3. ใช้ตัวแปร widget.userName เพื่อดึงชื่อที่ส่งเข้ามา
-                        Text("คุณ ${widget.userName}", 
-                            style: GoogleFonts.kanit(
-                                fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87)),
+                        Text(
+                          _getGreeting(),
+                          style: GoogleFonts.kanit(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        Text(
+                          currentUser.name,
+                          style: GoogleFonts.kanit(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
                       ],
                     ),
                     _buildProfileAvatar(),
                   ],
                 ),
-                
+
                 const SizedBox(height: 25),
 
-                // 2. Blue Queue Card
-                _buildQueueCard(),
+                // Logic การแสดงผล Card
+                if (latestBooking != null)
+                  _buildQueueCard(latestBooking)
+                else
+                  _buildNoBookingCard(),
 
                 const SizedBox(height: 30),
 
-                // 3. Search Bar
+                // Search Bar
                 _buildSearchBar(),
 
                 const SizedBox(height: 30),
 
-                const Text("รายชื่อทันตแพทย์",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                
+                Text(
+                  "รายชื่อทันตแพทย์",
+                  style: GoogleFonts.kanit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
                 const SizedBox(height: 15),
 
-                // 4. Doctor List
+                // --- [แก้ไข] เรียกใช้ Card แบบใหม่ (ไม่ต้องส่ง distance) ---
                 _buildDoctorCard(
                   name: "Dr. Joseph Brostito",
                   specialty: "Dental Specialist",
                   image: "https://i.pravatar.cc/150?img=68",
-                  distance: "1.2 KM",
                 ),
                 const SizedBox(height: 15),
                 _buildDoctorCard(
                   name: "Dr. Imran Syahir",
                   specialty: "General Dentist",
                   image: "https://i.pravatar.cc/150?img=12",
-                  distance: "2.5 KM",
                 ),
-                // พื้นที่ด้านล่างเผื่อไว้เล็กน้อยให้ scroll ได้สุด
                 const SizedBox(height: 20),
               ],
             ),
@@ -103,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- Widget ย่อยต่างๆ (โค้ดเหมือนเดิม) ---
+  // --- Widget ย่อย ---
 
   Widget _buildProfileAvatar() {
     return Container(
@@ -120,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQueueCard() {
+  Widget _buildQueueCard(AppointmentModel booking) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -136,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Colors.blue.withOpacity(0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
-          )
+          ),
         ],
       ),
       child: Column(
@@ -144,22 +171,33 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               const CircleAvatar(
-                backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
+                backgroundImage: NetworkImage(
+                  'https://i.pravatar.cc/150?img=11',
+                ),
                 radius: 22,
               ),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 4. แก้ไขชื่อในการ์ดสีฟ้าให้ดึงจาก widget.userName ด้วยเช่นกัน
-                  Text("คุณ ${widget.userName}",
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                  const Text("บริการ: ถอนฟัน",
-                      style: TextStyle(color: ColorUtils.whiteCC, fontSize: 13)),
+                  Text(
+                    currentUser.name,
+                    style: GoogleFonts.kanit(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    "บริการ: ${booking.serviceName.replaceAll('\n', ' ')}",
+                    style: const TextStyle(
+                      color: ColorUtils.whiteCC,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
               ),
               const Spacer(),
-              const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18)
             ],
           ),
           const Padding(
@@ -170,11 +208,42 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildQueueInfo("คิวของคุณ", "$_myQueue"),
+                _buildQueueInfo("คิวของคุณ", "${booking.queueNumber}"),
                 const VerticalDivider(color: Colors.white24, thickness: 1),
-                _buildQueueInfo("คิวปัจจุบัน", "$_currentQueue"),
+                _buildQueueInfo("คิวปัจจุบัน", "$currentClinicQueue"),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoBookingCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.calendar_today_outlined,
+            size: 40,
+            color: Colors.blue.shade300,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            "คุณยังไม่มีการนัดหมาย",
+            style: GoogleFonts.kanit(fontSize: 16, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            "จองคิวทันตแพทย์ผู้เชี่ยวชาญได้เลย",
+            style: GoogleFonts.kanit(fontSize: 12, color: Colors.grey.shade400),
           ),
         ],
       ),
@@ -204,18 +273,29 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildQueueInfo(String title, String value) {
     return Column(
       children: [
-        Text(title, style: const TextStyle(color: ColorUtils.whiteB8, fontSize: 14)),
-        Text(value,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 38,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2)),
+        Text(
+          title,
+          style: const TextStyle(color: ColorUtils.whiteB8, fontSize: 14),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.kanit(
+            color: Colors.white,
+            fontSize: 38,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildDoctorCard({required String name, required String specialty, required String image, required String distance}) {
+  // --- [แก้ไข] Widget นี้: เอาปุ่มและ distance ออก ---
+  Widget _buildDoctorCard({
+    required String name,
+    required String specialty,
+    required String image,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -223,59 +303,45 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: Image.network(image, width: 60, height: 60, fit: BoxFit.cover),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-                    Text(specialty, style: TextStyle(color: Colors.grey[500], fontSize: 14)),
-                  ],
-                ),
-              ),
-              _buildDistanceTag(distance),
-            ],
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 45,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text("จองนัดหมาย", style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          )
         ],
       ),
-    );
-  }
-
-  Widget _buildDistanceTag(String distance) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(10)),
       child: Row(
+        // ใช้ Row อย่างเดียว เพราะไม่ต้องมีปุ่มด้านล่างแล้ว
         children: [
-          Icon(Icons.location_on, size: 14, color: Colors.blue[700]),
-          const SizedBox(width: 4),
-          Text(distance, style: TextStyle(color: Colors.blue[700], fontSize: 12, fontWeight: FontWeight.bold)),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Image.network(
+              image,
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                  ),
+                ),
+                Text(
+                  specialty,
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          // เอาส่วนแสดง Distance ออกแล้ว
         ],
       ),
     );
