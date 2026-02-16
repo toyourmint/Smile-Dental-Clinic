@@ -28,7 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   /// 🔹 เรียก API
   //////////////////////////////////////////////////////
   Future<void> fetchUser() async {
-    final url = Uri.parse("http://10.0.2.2:3000/api/users/1");
+    final url = Uri.parse("http://10.0.2.2:3000/api/user/getprofiles");
     // 🔥 มือถือจริงให้เปลี่ยนเป็น IP เครื่องคอม
 
     try {
