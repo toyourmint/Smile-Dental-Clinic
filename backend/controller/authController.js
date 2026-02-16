@@ -163,9 +163,10 @@ exports.addUserByAdmin = async (req, res) => {
         return res.status(400).json({ message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
     }
 
-    const connection = await pool.getConnection();
+    
 
     try {
+        const connection = await pool.getConnection();
         await connection.beginTransaction();
 
         // 2. ตรวจสอบเบอร์โทรซ้ำ (ใช้ phone ที่รับมาตรงๆ)
