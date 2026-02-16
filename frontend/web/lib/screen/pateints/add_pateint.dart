@@ -1,6 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_application_1/screen/data/data_store.dart'; 
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_application_1/screen/data/data_store.dart';
+
+/// =========================
+/// ENUMS & EXTENSIONS
+/// =========================
+enum Gender { male, female, other }
+enum TreatmentRight { goldCard, government, socialSecurity, selfPay }
+
+extension GenderExt on Gender {
+  String get api {
+    switch (this) {
+      case Gender.male: return 'M'; 
+      case Gender.female: return 'F';
+      case Gender.other: return 'O';
+    }
+  }
+
+  String get labelTH {
+    switch (this) {
+      case Gender.male: return 'ชาย';
+      case Gender.female: return 'หญิง';
+      case Gender.other: return 'ไม่ระบุ';
+    }
+  }
+}
+
+extension TreatmentRightExt on TreatmentRight {
+  String get api {
+    switch (this) {
+      case TreatmentRight.goldCard: return 'gold_card';
+      case TreatmentRight.government: return 'government';
+      case TreatmentRight.socialSecurity: return 'social_security';
+      case TreatmentRight.selfPay: return 'self_pay';
+    }
+  }
+
+  String get labelTH {
+    switch (this) {
+      case TreatmentRight.goldCard: return 'บัตรทอง';
+      case TreatmentRight.government: return 'สิทธิข้าราชการ';
+      case TreatmentRight.socialSecurity: return 'สิทธิ์ประกันสังคม';
+      case TreatmentRight.selfPay: return 'จ่ายเงินเอง';
+    }
+  }
+}
 
 class AddPatientDialog extends StatefulWidget {
   final PatientInfo? existingPatient;
@@ -14,6 +60,7 @@ class AddPatientDialog extends StatefulWidget {
 
 class _AddPatientDialogState extends State<AddPatientDialog> {
   late bool _isViewMode;
+  bool _isLoading = false;
 
   final _patientIdCtrl = TextEditingController();
   final _idCardCtrl = TextEditingController();
@@ -36,13 +83,11 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
   final _provinceCtrl = TextEditingController();
   final _zipCodeCtrl = TextEditingController();
 
-  String? _selectedPrefix;
-  String? _selectedGender;
-  String? _selectedRight;
+  String? title;
+  Gender? gender;
+  TreatmentRight? right;
 
   final List<String> _prefixes = ['นาย', 'นาง', 'นางสาว'];
-  final List<String> _genders = ['ชาย', 'หญิง'];
-  final List<String> _rights = ['บัตรทอง', 'สิทธ์ประกันสังคม', 'สิทธิข้าราชการ'];
 
   @override
   void initState() {
@@ -53,10 +98,9 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
       final p = widget.existingPatient!;
       _patientIdCtrl.text = p.patientId;
       _idCardCtrl.text = p.idCard;
-      _selectedPrefix = _prefixes.contains(p.prefix) ? p.prefix : null;
+      title = _prefixes.contains(p.prefix) ? p.prefix : null;
       _firstNameCtrl.text = p.firstName;
       _lastNameCtrl.text = p.lastName;
-      _selectedGender = _genders.contains(p.gender) ? p.gender : null;
       _birthDateCtrl.text = p.birthDate;
       _phoneCtrl.text = p.phone;
       _emailCtrl.text = p.email;
@@ -66,7 +110,6 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
       _medicationCtrl.text = p.medication;
       _historyCtrl.text = p.history;
       
-      _selectedRight = _rights.contains(p.right) ? p.right : null;
       _insuranceCtrl.text = p.insuranceLimit;
       
       _addressCtrl.text = p.address;
@@ -74,20 +117,29 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
       _districtCtrl.text = p.district;
       _provinceCtrl.text = p.province;
       _zipCodeCtrl.text = p.zipCode;
+
+      if (p.gender == "ชาย") gender = Gender.male;
+      else if (p.gender == "หญิง") gender = Gender.female;
+      else if (p.gender != "-") gender = Gender.other;
+
+      if (p.right == "บัตรทอง") right = TreatmentRight.goldCard;
+      else if (p.right == "สิทธิข้าราชการ") right = TreatmentRight.government;
+      else if (p.right == "สิทธ์ประกันสังคม") right = TreatmentRight.socialSecurity;
+      else if (p.right == "จ่ายเงินเอง") right = TreatmentRight.selfPay;
+
     } else {
-      _patientIdCtrl.text = widget.generatedId ?? "";
+      _patientIdCtrl.text = widget.generatedId ?? "สร้างอัตโนมัติจากเซิร์ฟเวอร์";
     }
   }
 
   @override
   void dispose() {
-    _patientIdCtrl.dispose();
-    _idCardCtrl.dispose(); _firstNameCtrl.dispose(); _lastNameCtrl.dispose();
-    _birthDateCtrl.dispose(); _phoneCtrl.dispose(); _emailCtrl.dispose();
-    _diseaseCtrl.dispose(); _allergyCtrl.dispose(); _medicationCtrl.dispose();
-    _historyCtrl.dispose(); _insuranceCtrl.dispose(); _addressCtrl.dispose();
-    _subDistrictCtrl.dispose(); _districtCtrl.dispose(); _provinceCtrl.dispose();
-    _zipCodeCtrl.dispose();
+    _patientIdCtrl.dispose(); _idCardCtrl.dispose(); _firstNameCtrl.dispose(); 
+    _lastNameCtrl.dispose(); _birthDateCtrl.dispose(); _phoneCtrl.dispose(); 
+    _emailCtrl.dispose(); _diseaseCtrl.dispose(); _allergyCtrl.dispose(); 
+    _medicationCtrl.dispose(); _historyCtrl.dispose(); _insuranceCtrl.dispose(); 
+    _addressCtrl.dispose(); _subDistrictCtrl.dispose(); _districtCtrl.dispose(); 
+    _provinceCtrl.dispose(); _zipCodeCtrl.dispose();
     super.dispose();
   }
 
@@ -110,15 +162,15 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
     );
     if (picked != null) {
       setState(() {
-        _birthDateCtrl.text = "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year + 543}";
+        _birthDateCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
       });
     }
   }
 
-  void _onRightChanged(String? value) {
+  void _onRightChanged(TreatmentRight? value) {
     setState(() {
-      _selectedRight = value;
-      if (value == 'สิทธ์ประกันสังคม') {
+      right = value;
+      if (value == TreatmentRight.socialSecurity) {
         _insuranceCtrl.text = '900 บาท';
       } else {
         _insuranceCtrl.text = '-';
@@ -126,78 +178,89 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
     });
   }
 
-  void _onSave() {
-    // --- 💡 ระบบ Validation ตรวจสอบความถูกต้อง ---
-    // 1. ตรวจสอบว่ากรอกข้อมูลจำเป็นครบไหม (เพิ่ม _phoneCtrl เข้ามาเช็คด้วย)
+  Future<void> _saveToDatabase() async {
+    // 1. ตรวจสอบข้อมูลที่จำเป็น
     if (_idCardCtrl.text.trim().isEmpty || 
         _firstNameCtrl.text.trim().isEmpty || 
         _lastNameCtrl.text.trim().isEmpty ||
         _phoneCtrl.text.trim().isEmpty) { 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('กรุณากรอกข้อมูลที่จำเป็น (ที่มีเครื่องหมาย *) ให้ครบถ้วน', style: TextStyle(fontFamily: 'Prompt')),
-          backgroundColor: Colors.redAccent,
-        ),
+        const SnackBar(content: Text('กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน'), backgroundColor: Colors.redAccent),
       );
       return; 
     }
 
-    // 2. ตรวจสอบเลขบัตรประชาชน (ต้อง 13 หลัก)
     if (_idCardCtrl.text.trim().length != 13) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('กรุณากรอกเลขบัตรประจำตัวประชาชนให้ครบ 13 หลัก', style: TextStyle(fontFamily: 'Prompt')),
-          backgroundColor: Colors.redAccent,
-        ),
+        const SnackBar(content: Text('กรุณากรอกเลขบัตรประจำตัวประชาชนให้ครบ 13 หลัก'), backgroundColor: Colors.redAccent),
       );
       return; 
     }
 
-    // 3. ตรวจสอบเบอร์โทรศัพท์ (อย่างน้อย 9-10 หลัก)
-    if (_phoneCtrl.text.trim().length < 9) {
+    setState(() => _isLoading = true);
+
+    try {
+      // 💡 เรียกใช้ API สำหรับ Admin โดยเฉพาะ (ไม่ต้องรอ OTP)
+      final url = Uri.parse('http://localhost:3000/api/auth/addUser'); 
+      
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "citizen_id": _idCardCtrl.text.trim(),
+          "title": title ?? "",
+          "first_name": _firstNameCtrl.text.trim(),
+          "last_name": _lastNameCtrl.text.trim(),
+          "birth_date": _birthDateCtrl.text.trim(),
+          "gender": gender?.api ?? "O", 
+          "email": _emailCtrl.text.trim(),
+          "phone": _phoneCtrl.text.trim(),
+          "address_line": _addressCtrl.text.trim(),
+          "subdistrict": _subDistrictCtrl.text.trim(),
+          "district": _districtCtrl.text.trim(),
+          "province": _provinceCtrl.text.trim(),
+          "postal_code": _zipCodeCtrl.text.trim(),
+          "rights": right?.api ?? "self_pay",
+          "allergies": _allergyCtrl.text.trim(),
+          "disease": _diseaseCtrl.text.trim(),
+          "medicine": _medicationCtrl.text.trim()
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
+        final responseData = jsonDecode(response.body);
+        final hn = responseData['hn'] ?? ''; // รับรหัส HN ที่ Backend Gen ให้
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('เพิ่มข้อมูลผู้ป่วยสำเร็จ ${hn.isNotEmpty ? "(รหัสประจำตัว: $hn)" : ""}'), 
+            backgroundColor: Colors.green
+          ),
+        );
+        Navigator.of(context).pop(true); // ปิด Dialog
+      } else {
+        if (!mounted) return;
+        final errorData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorData['message'] ?? 'เกิดข้อผิดพลาด'), backgroundColor: Colors.redAccent),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง (9-10 หลัก)', style: TextStyle(fontFamily: 'Prompt')),
-          backgroundColor: Colors.redAccent,
-        ),
+        const SnackBar(content: Text('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'), backgroundColor: Colors.red),
       );
-      return; 
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-    // ------------------------------------------
-
-    String pId = _patientIdCtrl.text;
-
-    final updatedPatient = PatientInfo(
-      patientId: pId,
-      idCard: _idCardCtrl.text,
-      prefix: _selectedPrefix ?? "-",
-      firstName: _firstNameCtrl.text,
-      lastName: _lastNameCtrl.text,
-      gender: _selectedGender ?? "-",
-      birthDate: _birthDateCtrl.text.isEmpty ? "-" : _birthDateCtrl.text,
-      phone: _phoneCtrl.text.isEmpty ? "-" : _phoneCtrl.text,
-      email: _emailCtrl.text.isEmpty ? "-" : _emailCtrl.text,
-      disease: _diseaseCtrl.text.isEmpty ? "-" : _diseaseCtrl.text,
-      allergy: _allergyCtrl.text.isEmpty ? "-" : _allergyCtrl.text,
-      medication: _medicationCtrl.text.isEmpty ? "-" : _medicationCtrl.text,
-      history: _historyCtrl.text.isEmpty ? "-" : _historyCtrl.text,
-      right: _selectedRight ?? "-",
-      insuranceLimit: _insuranceCtrl.text.isEmpty ? "-" : _insuranceCtrl.text,
-      address: _addressCtrl.text.isEmpty ? "-" : _addressCtrl.text,
-      subDistrict: _subDistrictCtrl.text.isEmpty ? "-" : _subDistrictCtrl.text,
-      district: _districtCtrl.text.isEmpty ? "-" : _districtCtrl.text,
-      province: _provinceCtrl.text.isEmpty ? "-" : _provinceCtrl.text,
-      zipCode: _zipCodeCtrl.text.isEmpty ? "-" : _zipCodeCtrl.text,
-    );
-
-    Navigator.of(context).pop(updatedPatient);
   }
 
   @override
   Widget build(BuildContext context) {
-    String title = "ลงทะเบียนผู้ป่วยใหม่";
+    String dialogTitle = "ลงทะเบียนผู้ป่วยใหม่";
     if (widget.existingPatient != null) {
-      title = _isViewMode ? "ข้อมูลประจำตัวผู้ป่วย" : "แก้ไขข้อมูลผู้ป่วย";
+      dialogTitle = _isViewMode ? "ข้อมูลประจำตัวผู้ป่วย" : "แก้ไขข้อมูลผู้ป่วย";
     }
 
     bool isEditingExisting = !_isViewMode && widget.existingPatient != null;
@@ -215,7 +278,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              Text(dialogTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               if (widget.existingPatient == null)
                 const Text("กรอกข้อมูลสำหรับผู้ป่วยใหม่ (ช่องที่มี * จำเป็นต้องกรอก)", style: TextStyle(color: Colors.grey, fontSize: 14)),
               const SizedBox(height: 24),
@@ -231,7 +294,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                 children: [
                   SizedBox(
                     width: 120, 
-                    child: _buildDropdownField("คำนำหน้า", _prefixes, _selectedPrefix, (val) => setState(() => _selectedPrefix = val), enabled: !_isViewMode)
+                    child: _buildDropdownField<String>("คำนำหน้า", _prefixes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), title, (val) => setState(() => title = val), enabled: !_isViewMode, isRequired: true)
                   ),
                   const SizedBox(width: 16),
                   Expanded(child: _buildTextField("ชื่อจริง", "ชื่อ", controller: _firstNameCtrl, enabled: !_isViewMode, isRequired: true)),
@@ -245,14 +308,14 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: _buildDropdownField("เพศ", _genders, _selectedGender, (val) => setState(() => _selectedGender = val), enabled: !_isViewMode)
+                    child: _buildDropdownField<Gender>("เพศ", Gender.values.map((g) => DropdownMenuItem(value: g, child: Text(g.labelTH))).toList(), gender, (val) => setState(() => gender = val), enabled: !_isViewMode, isRequired: true)
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: GestureDetector(
                       onTap: _pickDate,
                       child: AbsorbPointer(
-                        child: _buildTextField("วัน / เดือน / ปีเกิด", "วว/ดด/ปปปป", controller: _birthDateCtrl, icon: Icons.calendar_today_outlined, enabled: !_isViewMode)
+                        child: _buildTextField("วัน / เดือน / ปีเกิด", "YYYY-MM-DD", controller: _birthDateCtrl, icon: Icons.calendar_today_outlined, enabled: !_isViewMode)
                       ),
                     ),
                   ),
@@ -263,10 +326,9 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 💡 เพิ่ม isRequired: true ตรงเบอร์โทรศัพท์
                   Expanded(child: _buildTextField("เบอร์โทรศัพท์", "08xxxxxxxx", controller: _phoneCtrl, isNumber: true, maxLength: 10, enabled: !_isViewMode, isRequired: true)),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildTextField("อีเมล", "name@example.com", controller: _emailCtrl, enabled: !_isViewMode)),
+                  Expanded(child: _buildTextField("อีเมล", "name@example.com", controller: _emailCtrl, enabled: !_isViewMode)), // อีเมลไม่บังคับแล้ว
                 ],
               ),
               const SizedBox(height: 16),
@@ -288,7 +350,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _buildDropdownField("สิทธิ์การรักษา", _rights, _selectedRight, _onRightChanged, enabled: !_isViewMode)),
+                  Expanded(child: _buildDropdownField<TreatmentRight>("สิทธิ์การรักษา", TreatmentRight.values.map((r) => DropdownMenuItem(value: r, child: Text(r.labelTH))).toList(), right, _onRightChanged, enabled: !_isViewMode, isRequired: true)),
                   const SizedBox(width: 16),
                   Expanded(child: _buildTextField("วงเงินประกัน", "-", controller: _insuranceCtrl, enabled: false)), 
                 ],
@@ -316,17 +378,14 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
               ),
               const SizedBox(height: 30),
 
-              // --- ปุ่ม Action ---
               Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: _isLoading ? null : () { 
                     if (_isViewMode) {
-                      setState(() {
-                        _isViewMode = false;
-                      });
+                      setState(() => _isViewMode = false);
                     } else {
-                      _onSave();
+                      _saveToDatabase();
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -335,12 +394,14 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text(
-                    _isViewMode 
-                      ? "แก้ไขข้อมูลผู้ป่วย" 
-                      : (widget.existingPatient != null ? "บันทึกการแก้ไข" : "บันทึกข้อมูลผู้ป่วย"), 
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
-                  ),
+                  child: _isLoading 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : Text(
+                          _isViewMode 
+                            ? "แก้ไขข้อมูลผู้ป่วย" 
+                            : (widget.existingPatient != null ? "บันทึกการแก้ไข" : "บันทึกข้อมูลผู้ป่วย"), 
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                        ),
                 ),
               ),
             ],
@@ -404,7 +465,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
     );
   }
 
-  Widget _buildDropdownField(String label, List<String> items, String? currentValue, Function(String?) onChanged, {bool enabled = true}) {
+  Widget _buildDropdownField<T>(String label, List<DropdownMenuItem<T>> items, T? currentValue, Function(T?) onChanged, {bool enabled = true, bool isRequired = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -419,19 +480,14 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
+                child: DropdownButton<T>(
                   value: currentValue,
                   isExpanded: true,
                   hint: Text("เลือก", style: TextStyle(color: Colors.grey.shade400)),
                   icon: const Icon(Icons.arrow_drop_down, color: Colors.black54),
                   onChanged: enabled ? onChanged : null, 
                   style: const TextStyle(color: Colors.black87),
-                  items: items.map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value, style: const TextStyle(color: Colors.black87)),
-                    );
-                  }).toList(),
+                  items: items,
                 ),
               ),
             ),
@@ -440,7 +496,14 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
               child: Container(
                 color: enabled ? Colors.white : Colors.grey.shade100,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                    if (isRequired)
+                      const Text(" *", style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold)),
+                  ],
+                ),
               ),
             ),
           ],
