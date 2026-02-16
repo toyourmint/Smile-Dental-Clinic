@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/auth_service.dart';
+import 'package:mylogin/services/auth_service.dart';
 import 'otp_screen.dart';
 import 'login_screen.dart';
 
