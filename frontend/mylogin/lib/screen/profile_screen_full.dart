@@ -272,7 +272,7 @@ class _ProfileScreenFullState extends State<ProfileScreenFull>
       padding: const EdgeInsets.all(16),
       children: [
         _field("โรคประจำตัว", user!.disease),
-        _field("ประวัติแพ้", user!.allergies),
+        _field("ประวัติการแพ้", user!.allergies),
         _field("ยาประจำตัว", user!.medicine),
       ],
     );
