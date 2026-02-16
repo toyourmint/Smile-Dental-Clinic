@@ -70,13 +70,45 @@ exports.register = async (req, res) => {
             [email, phone, 'PENDING', 'user', 0]
         );
         const userId = userResult.insertId;
+        
+        let annualBudget = 0;
+        if (treatment_right === 'social_security') {
+            annualBudget = 900;
+        }
+
+        // ==========================================
+        // 🔥 GEN HN (SD-YYXXXX)
+        // ==========================================
+        const currentYear = new Date().getFullYear().toString().slice(-2); // ดึงปีปัจจุบัน (เช่น '26' จาก 2026)
+        const hnPrefix = `SD-${currentYear}`;
+
+        // ดึงเลข HN ล่าสุดของปีนี้ (ใช้ FOR UPDATE เพื่อป้องกันคนกดสมัครพร้อมกันแล้วได้เลขซ้ำ)
+        const [lastHnResult] = await connection.execute(
+            `SELECT hn FROM user_profiles WHERE hn LIKE ? ORDER BY hn DESC LIMIT 1 FOR UPDATE`,
+            [`${hnPrefix}%`]
+        );
+
+        let nextNumber = 1; // เริ่มต้นที่ 1 ถ้ายังไม่มีข้อมูลในปีนั้น
+        if (lastHnResult.length > 0 && lastHnResult[0].hn) {
+            const lastHn = lastHnResult[0].hn; // เช่น 'SD-260001'
+            // ตัดเอาเฉพาะ 4 ตัวท้ายมาแปลงเป็นตัวเลข แล้วบวก 1
+            const lastNumber = parseInt(lastHn.slice(-4), 10);
+            if (!isNaN(lastNumber)) {
+                nextNumber = lastNumber + 1;
+            }
+        }
+
+        // เติมเลขศูนย์ข้างหน้าให้ครบ 4 หลัก (เช่น 1 -> '0001')
+        const paddedNumber = nextNumber.toString().padStart(4, '0');
+        const generatedHn = `${hnPrefix}${paddedNumber}`; // จะได้ 'SD-260001'
+        // ==========================================
 
         // 3. profile
         await connection.execute(
             `INSERT INTO user_profiles 
-            (user_id, citizen_id, title, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [userId, citizen_id, safeTitle, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine ]
+            (user_id, citizen_id, title, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, annual_budget, hn)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, citizen_id, safeTitle, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, annualBudget, generatedHn]
         );
 
         // 4. address
@@ -237,20 +269,13 @@ exports.verifyOtp = async (req, res) => {
     const { email, otp } = req.body;
 
     try {
-        const [users] = await pool.execute(
-            'SELECT id FROM users WHERE email = ?',
-            [email]
-        );
-
-        if (users.length === 0) {
-            return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
-        }
+        const [users] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+        if (users.length === 0) return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
 
         const userId = users[0].id;
 
         const [rows] = await pool.execute(
-            `SELECT id FROM user_otps
-             WHERE user_id = ? AND otp_code = ? AND is_used = 0 AND expires_at > NOW()`,
+            `SELECT id FROM user_otps WHERE user_id = ? AND otp_code = ? AND is_used = 0 AND expires_at > NOW()`,
             [userId, otp]
         );
 
@@ -258,7 +283,13 @@ exports.verifyOtp = async (req, res) => {
             return res.status(400).json({ message: 'OTP ไม่ถูกต้องหรือหมดอายุ' });
         }
 
-        res.json({ message: 'OTP ถูกต้อง' });
+        // 🔥 เพิ่มบรรทัดนี้: ต่ออายุ OTP นี้ออกไปอีก 10 นาที นับจากตอนที่กรอกถูก
+        await pool.execute(
+            `UPDATE user_otps SET expires_at = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE id = ?`,
+            [rows[0].id]
+        );
+
+        res.json({ message: 'OTP ถูกต้องและได้ขยายเวลาสำหรับตั้งรหัสผ่านแล้ว' });
 
     } catch (error) {
         res.status(500).json({ message: 'Error checking OTP' });
