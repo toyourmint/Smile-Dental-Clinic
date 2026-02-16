@@ -19,48 +19,63 @@ class _NotificationScreenState extends State<NotificationScreen> {
     fetchNotifications();
   }
 
-  // ===============================
-  // 🔹 ดึงข้อมูลจาก Database / API
-  // ===============================
+  ////////////////////////////////////////////////////////////
+  /// 🔹 ดึงข้อมูลจาก API
+  ////////////////////////////////////////////////////////////
   Future<void> fetchNotifications() async {
     try {
-      // 🔥 เปลี่ยน URL เป็นของตัวเอง
+      // 🔥 เปลี่ยน URL เป็นของจริง
       final response =
           await http.get(Uri.parse("http://your-api.com/notifications"));
 
       if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
         setState(() {
-          notifications = json.decode(response.body);
+          notifications = data is List ? data : [];
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          notifications = [];
           isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint(e.toString());
-      setState(() => isLoading = false);
+      debugPrint("Error: $e");
+      setState(() {
+        notifications = [];
+        isLoading = false;
+      });
     }
   }
 
-  // ===============================
-  // 🔹 แปลงวันที่ 2026-02-18 → 18.02.2569
-  // ===============================
-  String formatDate(String date) {
-    DateTime d = DateTime.parse(date);
-    int yearThai = d.year + 543;
+  ////////////////////////////////////////////////////////////
+  /// 🔹 แปลงวันที่ ค.ศ. → พ.ศ.
+  ////////////////////////////////////////////////////////////
+  String formatDate(String? date) {
+    if (date == null || date.isEmpty) return "";
 
-    return "${d.day.toString().padLeft(2, '0')}."
-        "${d.month.toString().padLeft(2, '0')}."
-        "$yearThai";
+    try {
+      DateTime d = DateTime.parse(date);
+      int yearThai = d.year + 543;
+
+      return "${d.day.toString().padLeft(2, '0')}."
+          "${d.month.toString().padLeft(2, '0')}."
+          "$yearThai";
+    } catch (e) {
+      return "";
+    }
   }
 
-  // ===============================
-  // 🔹 UI
-  // ===============================
+  ////////////////////////////////////////////////////////////
+  /// 🔹 UI
+  ////////////////////////////////////////////////////////////
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
 
-      // ===== Header =====
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
@@ -75,29 +90,53 @@ class _NotificationScreenState extends State<NotificationScreen> {
         ),
       ),
 
-      // ===== Body =====
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: notifications.length,
-              itemBuilder: (context, index) {
-                final item = notifications[index];
 
-                return NotificationCard(
-                  title: item['title'],
-                  date: formatDate(item['date']),
-                  start: item['start_time'],
-                  end: item['end_time'],
-                );
-              },
-            ),
+          /// 🔥 ถ้าไม่มีข้อมูล
+          : notifications.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(
+                        Icons.notifications_none,
+                        size: 60,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        "ไม่มีการแจ้งเตือน",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+
+              /// 🔥 ถ้ามีข้อมูล
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: notifications.length,
+                  itemBuilder: (context, index) {
+                    final item = notifications[index];
+
+                    return NotificationCard(
+                      title: item['title'] ?? "",
+                      date: formatDate(item['date']),
+                      start: item['start_time'] ?? "",
+                      end: item['end_time'] ?? "",
+                    );
+                  },
+                ),
     );
   }
 }
 
 ////////////////////////////////////////////////////////
-/// 🔔 Notification Card (Component แยก)
+/// 🔔 Notification Card
 ////////////////////////////////////////////////////////
 class NotificationCard extends StatelessWidget {
   final String title;
@@ -124,16 +163,13 @@ class NotificationCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 🔔 icon
           const Icon(
             Icons.notifications,
             color: Colors.orange,
             size: 32,
           ),
-
           const SizedBox(width: 12),
 
-          // 🔹 text
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,7 +183,9 @@ class NotificationCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "$date เวลา $start - $end น.",
+                  date.isNotEmpty
+                      ? "$date เวลา $start - $end น."
+                      : "",
                   style: const TextStyle(
                     fontSize: 13,
                     color: Colors.black54,
