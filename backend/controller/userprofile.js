@@ -10,7 +10,8 @@ exports.getUserProfile = async (req, res) => {
 
     const sql = `
       SELECT 
-        p.citizen_id,
+        p.hn,
+        p.gender,
         p.title,
         p.first_name,
         p.last_name,

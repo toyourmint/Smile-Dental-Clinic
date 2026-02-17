@@ -45,6 +45,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         final decoded = utf8.decode(response.bodyBytes);
         final data = json.decode(decoded);
 
+        print(data);   // ⭐ ดูข้อมูลดิบจาก API
+        print(data['address_line']); // ⭐ ดูเฉพาะที่อยู่
+
         setState(() {
           user = data;
           isLoading = false;
@@ -157,7 +160,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                     const SizedBox(height: 6),
                     Text(
-                      "Citizen ID : ${user!['citizen_id'] ?? '-'}",
+                      "HN : ${user!['hn'] ?? '-'}",
                       style: thaiText(),
                     ),
 
