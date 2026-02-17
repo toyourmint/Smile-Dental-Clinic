@@ -35,7 +35,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
   Future<void> _fetchPatients() async {
     setState(() => _isLoading = true);
     try {
-      final response = await http.get(Uri.parse('http://localhost:3000/api/user/getprofiles'));
+      final response = await http.get(Uri.parse('http://localhost:3000/api/user/getallprofiles'));
       
       if (response.statusCode == 200) {
         // แปลงเป็น Map ก่อน เพราะ Backend ส่งมาเป็น { "profiles": [...] }
