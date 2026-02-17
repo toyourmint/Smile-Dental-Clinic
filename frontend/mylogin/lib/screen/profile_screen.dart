@@ -168,6 +168,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                     TabBar(
                       controller: _tabController,
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.center,
                       labelColor: Colors.blue,
                       unselectedLabelColor: Colors.grey,
                       tabs: const [
