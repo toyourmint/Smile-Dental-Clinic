@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => MainWrapper(
-            userName: result['body']['user']['email'], // หรือชื่อ
+            userName: result['body']['user']['first_name'],
             userId: result['body']['user']['id'],      // ⭐ สำคัญ
           ),
 
