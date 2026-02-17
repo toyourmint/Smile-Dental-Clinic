@@ -6,10 +6,15 @@ import 'notification_screen_mock.dart';
 import 'profile_screen.dart';
 
 class MainWrapper extends StatefulWidget {
-  final String userName; // 1. เพิ่มตัวแปรรับชื่อ
+  final String userName;
+  final int userId;
 
-  // 2. เพิ่ม required this.userName ใน constructor
-  const MainWrapper({super.key, required this.userName});
+  const MainWrapper({
+    super.key,
+    required this.userName,
+    required this.userId,
+  });
+
 
   @override
   State<MainWrapper> createState() => _MainWrapperState();
@@ -29,7 +34,8 @@ class _MainWrapperState extends State<MainWrapper> {
       HomeScreen(userName: widget.userName), // ส่งชื่อต่อไปให้ Home
       CalendarScreen(), 
       NotificationScreenMock(),
-      ProfileScreen(),
+      ProfileScreen(userId: widget.userId),
+
     ];
   }
 

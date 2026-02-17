@@ -32,7 +32,7 @@ const transporter = nodemailer.createTransport({
 
 
 exports.register = async (req, res) => {
-    
+
     const {
         citizen_id, title, first_name, last_name, birth_date, gender,
         email, phone,
@@ -40,15 +40,15 @@ exports.register = async (req, res) => {
         rights: treatment_right,
         allergies, disease, medicine    // 👈 เพิ่มตรงนี้
     } = req.body;
-    
+
     if (!email || !phone || !citizen_id || !first_name) {
         return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
     }
 
-      // ✅ กันค่าว่างจาก Flutter
-  const safeTitle = title && title.trim() !== '' ? title : null;
+    // ✅ กันค่าว่างจาก Flutter
+    const safeTitle = title && title.trim() !== '' ? title : null;
 
-  const connection = await pool.getConnection();
+    const connection = await pool.getConnection();
 
     try {
         await connection.beginTransaction();
@@ -70,7 +70,7 @@ exports.register = async (req, res) => {
             [email, phone, 'PENDING', 'user', 0]
         );
         const userId = userResult.insertId;
-        
+
         let annualBudget = 0;
         if (treatment_right === 'social_security') {
             annualBudget = 900;
@@ -144,74 +144,186 @@ exports.register = async (req, res) => {
         await connection.rollback();
         console.error(error);
         res.status(500).json({ message: 'เกิดข้อผิดพลาด' });
-    } finally{
+    } finally {
         connection.release();
     }
 };
+
+exports.addUserByAdmin = async (req, res) => {
+    const {
+        citizen_id, title, first_name, last_name, birth_date, gender,
+        email, phone,
+        address_line, subdistrict, district, province, postal_code,
+        rights: treatment_right,
+        allergies, disease, medicine
+    } = req.body;
+
+    // 1. Validation เบื้องต้น
+    if (!citizen_id || !first_name || !last_name || !phone) {
+        return res.status(400).json({ message: 'กรุณากรอกข้อมูลสำคัญให้ครบถ้วน' });
+    }
+
+    let connection;
+
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // 2. ตรวจสอบเบอร์โทรซ้ำ (ใช้ phone ที่รับมาตรงๆ)
+        const [existing] = await connection.execute(
+            'SELECT id FROM users WHERE phone = ?',
+            [phone]
+        );
+
+        if (existing.length > 0) {
+            await connection.rollback();
+            return res.status(400).json({ message: 'เบอร์โทรศัพท์นี้มีในระบบแล้ว' });
+        }
+
+        // 3. Hash รหัสผ่านโดยใช้เบอร์โทรศัพท์เป็นต้นแบบ
+        const hashedPassword = await bcrypt.hash(phone, 10);
+
+        // 4. บันทึกลงตาราง users และเปิดใช้งานทันที
+        const [userResult] = await connection.execute(
+            'INSERT INTO users (email, phone, password, role, is_active) VALUES (?, ?, ?, ?, ?)',
+            [email || null, phone, hashedPassword, 'user', 1]
+        );
+        const userId = userResult.insertId;
+
+        // 5. จัดการ Logic เลข HN (SD-YYXXXX)
+        const currentYear = new Date().getFullYear().toString().slice(-2);
+        const hnPrefix = `SD-${currentYear}`;
+
+        const [lastHnResult] = await connection.execute(
+            `SELECT hn FROM user_profiles WHERE hn LIKE ? ORDER BY hn DESC LIMIT 1 FOR UPDATE`,
+            [`${hnPrefix}%`]
+        );
+
+        let nextNumber = 1;
+        if (lastHnResult.length > 0 && lastHnResult[0].hn) {
+            const lastNumber = parseInt(lastHnResult[0].hn.slice(-4), 10);
+            if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+        }
+        const generatedHn = `${hnPrefix}${nextNumber.toString().padStart(4, '0')}`;
+
+        // 6. บันทึก User Profile
+        const safeTitle = title && title.trim() !== '' ? title : null;
+        await connection.execute(
+            `INSERT INTO user_profiles 
+            (user_id, citizen_id, title, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, annual_budget, hn)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, citizen_id, safeTitle, first_name, last_name, birth_date, gender, treatment_right, allergies, disease, medicine, (treatment_right === 'social_security' ? 900 : 0), generatedHn]
+        );
+
+        // 7. บันทึก Address
+        await connection.execute(
+            `INSERT INTO user_addresses (user_id, address_line, subdistrict, district, province, postal_code)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+            [userId, address_line, subdistrict, district, province, postal_code]
+        );
+
+        await connection.commit();
+
+        res.status(201).json({
+            success: true,
+            message: 'เพิ่มข้อมูลผู้ป่วยสำเร็จ',
+            hn: generatedHn,
+            password_hint: 'รหัสผ่านเริ่มต้นคือเบอร์โทรศัพท์'
+        });
+
+
+    } catch (error) {
+        // 💡 แก้จุดที่ 3: เช็คก่อนว่ามี connection หรือยัง ถึงค่อยสั่ง rollback
+        if (connection) {
+            await connection.rollback();
+        }
+        console.error("Add User Error:", error);
+        res.status(500).json({
+            success: false,
+            message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
+        });
+
+    } finally {
+        // 💡 แก้จุดที่ 4: เช็คก่อนว่ามี connection หรือยัง ถึงค่อย release
+        if (connection) {
+            connection.release();
+        }
+    }
+};
+
 
 // =================================================
 // LOGIN  ✅ FIX bcrypt + PENDING
 // =================================================
 exports.login = async (req, res) => {
+  try {
     const { loginIdentifier, password } = req.body;
 
-    if (!loginIdentifier || !password) {
-        return res.status(400).json({ message: "กรุณากรอก Email/เบอร์โทร และรหัสผ่าน" });
+    const [rows] = await pool.execute(
+      `SELECT 
+          u.id,
+          u.email,
+          u.password,
+          u.role,
+          p.first_name,
+          p.last_name
+       FROM users u
+       LEFT JOIN user_profiles p ON u.id = p.user_id
+       WHERE (u.email = ? OR u.phone = ?)
+       AND u.is_active = 1`,
+      [loginIdentifier, loginIdentifier]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({
+        message: "ไม่พบผู้ใช้ หรือบัญชียังไม่ถูกเปิดใช้งาน"
+      });
     }
 
-    try {
+    const user = rows[0];
 
-        const [rows] = await pool.execute(
-            'SELECT * FROM users WHERE (email = ? OR phone = ?) AND is_active = 1',
-            [loginIdentifier, loginIdentifier]
-        );
-
-        if (rows.length === 0) {
-            return res.status(401).json({
-                message: "ไม่พบผู้ใช้ หรือบัญชียังไม่ถูกเปิดใช้งาน"
-            });
-        }
-
-        const user = rows[0];
-
-        // 🔴 FIX: ป้องกัน bcrypt พัง
-        if (user.password === 'PENDING') {
-            return res.status(403).json({
-                message: 'บัญชียังไม่ได้ตั้งรหัสผ่าน กรุณายืนยัน OTP ก่อน'
-            });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            return res.status(401).json({ message: "รหัสผ่านไม่ถูกต้อง" });
-        }
-
-        const token = jwt.sign(
-            {
-                userId: user.id,
-                email: user.email,
-                role: user.role
-            },
-            process.env.JWT_SECRET || 'secret_key',
-            { expiresIn: '8h' }
-        );
-
-        res.status(200).json({
-            message: 'เข้าสู่ระบบสำเร็จ',
-            token,
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role
-            }
-        });
-
-    } catch (error) {
-        console.error('Login Error:', error);
-        res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
+    // 🔴 บัญชีรอ OTP
+    if (user.password === 'PENDING') {
+      return res.status(403).json({
+        message: 'บัญชียังไม่ได้ตั้งรหัสผ่าน กรุณายืนยัน OTP ก่อน'
+      });
     }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "รหัสผ่านไม่ถูกต้อง" });
+    }
+
+    // ✅ สร้าง token
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        role: user.role,
+        first_name: user.first_name
+      },
+      process.env.JWT_SECRET || 'secret_key',
+      { expiresIn: '8h' }
+    );
+
+    res.status(200).json({
+      message: 'เข้าสู่ระบบสำเร็จ',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        first_name: user.first_name,
+        last_name: user.last_name
+      }
+    });
+
+  } catch (error) {
+    console.error('Login Error:', error);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
+  }
 };
+
 
 // =================================================
 // FORGOT PASSWORD
