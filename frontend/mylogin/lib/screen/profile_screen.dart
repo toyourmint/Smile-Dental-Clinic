@@ -1,14 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
-
+import 'package:shared_preferences/shared_preferences.dart'; // 🌟 เพิ่ม import นี้
 
 class ProfileScreen extends StatefulWidget {
-  final int userId;
-
-  const ProfileScreen({super.key, required this.userId});
-
+  // 🌟 ลบ final int userId; ออกไปเลย เพราะเราไม่ใช้ id ส่งไปทาง URL แล้ว
+  const ProfileScreen({super.key}); 
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -33,28 +30,48 @@ class _ProfileScreenState extends State<ProfileScreen>
   /// 🔹 API
   //////////////////////////////////////////////////////
   Future<void> fetchUser() async {
-
-    final url = Uri.parse(
-      "http://10.0.2.2:3000/api/user/getprofiles?id=${widget.userId}"
-    );
+    // 🌟 1. ลบ ?id= ออกจาก URL
+    final url = Uri.parse("http://10.0.2.2:3000/api/user/getprofiles");
 
     try {
-      final response = await http.get(url);
+      // 🌟 2. ดึง Token ที่เซฟไว้ตอนล็อกอิน
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? myToken = prefs.getString('my_token');
+
+      // ตรวจสอบว่ามี Token ไหม
+      if (myToken == null || myToken.isEmpty) {
+        setState(() {
+          errorMessage = "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่";
+          isLoading = false;
+        });
+        return;
+      }
+
+      // 🌟 3. แนบ Token ไปใน Headers
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $myToken', 
+        },
+      );
 
       if (response.statusCode == 200) {
         final decoded = utf8.decode(response.bodyBytes);
         final data = json.decode(decoded);
 
-        print(data);   // ⭐ ดูข้อมูลดิบจาก API
-        print(data['address_line']); // ⭐ ดูเฉพาะที่อยู่
-
         setState(() {
           user = data;
           isLoading = false;
         });
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        setState(() {
+          errorMessage = "ไม่มีสิทธิ์เข้าถึง (Token อาจหมดอายุ)";
+          isLoading = false;
+        });
       } else {
         setState(() {
-          errorMessage = "โหลดข้อมูลไม่สำเร็จ";
+          errorMessage = "โหลดข้อมูลไม่สำเร็จ (${response.statusCode})";
           isLoading = false;
         });
       }

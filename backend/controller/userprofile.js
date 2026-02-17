@@ -2,7 +2,7 @@ const pool = require('../config/db');
 
 exports.getUserProfile = async (req, res) => {
   try {
-    const userId = req.query.id;
+    const userId = req.user.id;
 
     if (!userId) {
       return res.status(400).json({ message: 'Missing user id' });
@@ -165,4 +165,21 @@ exports.editUserProfile = async (req, res) => {
       connection.release();
     }
   }
+};
+
+exports.getDoctorProfile = async (req, res) => {
+    try {
+        const sql = `
+        SELECT 
+            doctor_id,
+            doctor_name
+        FROM doctors
+        `;
+
+        const [rows] = await pool.execute(sql);
+        res.status(200).json({ doctors: rows });
+    } catch (error) {
+        console.error('Error fetching doctor profiles:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 };

@@ -7,14 +7,13 @@ import 'profile_screen.dart';
 
 class MainWrapper extends StatefulWidget {
   final String userName;
-  final int userId;
+  final int userId; // ตัวแปรนี้ปล่อยทิ้งไว้แบบนี้ได้เลยครับ เผื่อหน้าอื่นต้องใช้
 
   const MainWrapper({
     super.key,
     required this.userName,
     required this.userId,
   });
-
 
   @override
   State<MainWrapper> createState() => _MainWrapperState();
@@ -23,19 +22,20 @@ class MainWrapper extends StatefulWidget {
 class _MainWrapperState extends State<MainWrapper> {
   int _selectedIndex = 0;
 
-  // 3. เปลี่ยน List เป็น late final เพื่อให้รอรับค่า widget.userName ได้
   late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
-    // 4. กำหนดค่าใน initState เพื่อดึงชื่อที่ส่งเข้ามาไปใช้
+    
     _screens = [
-      HomeScreen(userName: widget.userName), // ส่งชื่อต่อไปให้ Home
-      CalendarScreen(), 
-      NotificationScreenMock(),
-      ProfileScreen(userId: widget.userId),
-
+      HomeScreen(userName: widget.userName),
+      const CalendarScreen(), // ใส่ const ได้เลยถ้าหน้านั้นไม่มีการส่งค่า
+      const NotificationScreenMock(),
+      
+      // 🌟 แก้ตรงนี้! เอา userId ออกให้เหลือแค่นี้ 
+      // (ใส่ const เพิ่มเข้าไปด้วยเพื่อประสิทธิภาพที่ดีขึ้น)
+      const ProfileScreen(), 
     ];
   }
 
