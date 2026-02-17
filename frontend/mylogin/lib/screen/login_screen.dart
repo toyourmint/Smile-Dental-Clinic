@@ -48,8 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
         /// สำเร็จ → ไปหน้า Home
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => MainWrapper(userName: email)),
+          MaterialPageRoute(
+            builder: (_) => MainWrapper(
+            userName: result['body']['user']['email'], // หรือชื่อ
+            userId: result['body']['user']['id'],      // ⭐ สำคัญ
+          ),
+
+          ),
         );
+
       } else {
         /// error จาก backend
         ScaffoldMessenger.of(context).showSnackBar(

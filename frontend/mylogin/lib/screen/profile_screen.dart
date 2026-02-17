@@ -2,8 +2,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+
+
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final int userId;
+
+  const ProfileScreen({super.key, required this.userId});
+
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -25,44 +30,47 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   //////////////////////////////////////////////////////
-  /// 🔹 เรียก API
+  /// 🔹 API
   //////////////////////////////////////////////////////
   Future<void> fetchUser() async {
-  final url = Uri.parse("http://10.0.2.2:3000/api/user/getprofiles");
 
-  try {
-    final response = await http.get(url);
+    final url = Uri.parse(
+      "http://10.0.2.2:3000/api/user/getprofiles?id=${widget.userId}"
+    );
 
-    if (response.statusCode == 200) {
+    try {
+      final response = await http.get(url);
 
-      final decoded = utf8.decode(response.bodyBytes); // ⭐ แก้ไทยเพี้ยน
-      print(decoded);
+      if (response.statusCode == 200) {
+        final decoded = utf8.decode(response.bodyBytes);
+        final data = json.decode(decoded);
 
-      final data = json.decode(decoded);
+        print(data);   // ⭐ ดูข้อมูลดิบจาก API
+        print(data['address_line']); // ⭐ ดูเฉพาะที่อยู่
 
+        setState(() {
+          user = data;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          errorMessage = "โหลดข้อมูลไม่สำเร็จ";
+          isLoading = false;
+        });
+      }
+    } catch (e) {
       setState(() {
-        user = data['profiles'][0];
-        isLoading = false;
-      });
-
-    } else {
-      setState(() {
-        errorMessage = "โหลดข้อมูลไม่สำเร็จ";
+        errorMessage = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
         isLoading = false;
       });
     }
-  } catch (e) {
-    setState(() {
-      errorMessage = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
-      isLoading = false;
-    });
   }
-}
+
 
 
 
   //////////////////////////////////////////////////////
-  /// 🔹 คำนวณอายุ
+  /// 🔹 อายุ
   //////////////////////////////////////////////////////
   int calculateAge(String birth) {
     DateTime b = DateTime.parse(birth);
@@ -77,7 +85,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   //////////////////////////////////////////////////////
-  /// 🔹 format วันไทย
+  /// 🔹 วันที่ไทย
   //////////////////////////////////////////////////////
   String formatDate(String birth) {
     DateTime d = DateTime.parse(birth);
@@ -87,44 +95,48 @@ class _ProfileScreenState extends State<ProfileScreen>
   String _monthThai(int m) {
     const months = [
       "",
-      "ม.ค.",
-      "ก.พ.",
-      "มี.ค.",
-      "เม.ย.",
-      "พ.ค.",
-      "มิ.ย.",
-      "ก.ค.",
-      "ส.ค.",
-      "ก.ย.",
-      "ต.ค.",
-      "พ.ย.",
-      "ธ.ค."
+      "ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.",
+      "ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."
     ];
     return months[m];
   }
 
   //////////////////////////////////////////////////////
-  /// 🔹 รวมที่อยู่
+  /// 🔹 รวมที่อยู่ (กัน null)
   //////////////////////////////////////////////////////
   String fullAddress() {
-    return "${user!['address_line']} "
-        "${user!['subdistrict']} "
-        "${user!['district']} "
-        "${user!['province']} "
-        "${user!['postal_code']}";
+    return [
+      user?['address_line'],
+      user?['subdistrict'],
+      user?['district'],
+      user?['province'],
+      user?['postal_code']
+    ].where((e) => e != null && e.toString().isNotEmpty).join(" ");
   }
 
   //////////////////////////////////////////////////////
-  /// 🔹 UI
+  /// 🔹 TEXT STYLE รองรับภาษาไทยเต็มรูปแบบ
+  //////////////////////////////////////////////////////
+  TextStyle thaiText({double size = 16, FontWeight weight = FontWeight.normal}) {
+    return TextStyle(
+      fontSize: size,
+      fontWeight: weight,
+      fontFamilyFallback: const [
+        'Noto Sans Thai',
+        'Sarabun',
+        'Tahoma',
+        'Arial',
+      ],
+    );
+  }
+
+  //////////////////////////////////////////////////////
+  /// UI
   //////////////////////////////////////////////////////
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text("ข้อมูลส่วนตัว"),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text("ข้อมูลส่วนตัว")),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : errorMessage != null
@@ -143,12 +155,14 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                     Text(
                       "คุณ ${user!['first_name']} ${user!['last_name']}",
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+                      style: thaiText(size: 18, weight: FontWeight.bold),
                     ),
 
                     const SizedBox(height: 6),
-                    Text("Citizen ID : ${user!['citizen_id'] ?? '-'}"),
+                    Text(
+                      "HN : ${user!['hn'] ?? '-'}",
+                      style: thaiText(),
+                    ),
 
                     const SizedBox(height: 16),
 
@@ -179,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   //////////////////////////////////////////////////////
-  /// TAB 1 : ข้อมูลส่วนตัว
+  /// TAB 1
   //////////////////////////////////////////////////////
   Widget _personalTab() {
     return ListView(
@@ -197,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   //////////////////////////////////////////////////////
-  /// TAB 2 : ข้อมูลทางการแพทย์
+  /// TAB 2
   //////////////////////////////////////////////////////
   Widget _medicalTab() {
     return ListView(
@@ -211,7 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   //////////////////////////////////////////////////////
-  /// TAB 3 : สิทธิประโยชน์
+  /// TAB 3
   //////////////////////////////////////////////////////
   Widget _benefitTab() {
     return ListView(
@@ -225,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   //////////////////////////////////////////////////////
-  /// 🔹 กล่องแสดงข้อมูล
+  /// กล่องข้อมูล
   //////////////////////////////////////////////////////
   Widget _field(String label, String value) {
     return Padding(
@@ -233,17 +247,16 @@ class _ProfileScreenState extends State<ProfileScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
+          Text(label, style: thaiText(size: 13, weight: FontWeight.w500)),
           const SizedBox(height: 6),
           Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.blue),
             ),
-            child: Text(value),
+            child: Text(value, style: thaiText()),
           ),
         ],
       ),
