@@ -51,8 +51,14 @@ extension TreatmentRightExt on TreatmentRight {
 class AddPatientDialog extends StatefulWidget {
   final PatientInfo? existingPatient;
   final String? generatedId;
+  final VoidCallback? onPatientAdded; // 💡 รับ Callback มาจากหน้าตาราง
 
-  const AddPatientDialog({super.key, this.existingPatient, this.generatedId});
+  const AddPatientDialog({
+    super.key, 
+    this.existingPatient, 
+    this.generatedId, 
+    this.onPatientAdded 
+  });
 
   @override
   State<AddPatientDialog> createState() => _AddPatientDialogState();
@@ -143,6 +149,31 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
     super.dispose();
   }
 
+  // 💡 เพิ่มฟังก์ชันล้างข้อมูล เพื่อเตรียมกรอกคนถัดไป
+  void _resetForm() {
+    _idCardCtrl.clear();
+    _firstNameCtrl.clear();
+    _lastNameCtrl.clear();
+    _birthDateCtrl.clear();
+    _phoneCtrl.clear();
+    _emailCtrl.clear();
+    _diseaseCtrl.clear();
+    _allergyCtrl.clear();
+    _medicationCtrl.clear();
+    _historyCtrl.clear();
+    _addressCtrl.clear();
+    _subDistrictCtrl.clear();
+    _districtCtrl.clear();
+    _provinceCtrl.clear();
+    _zipCodeCtrl.clear();
+    setState(() {
+      title = null;
+      gender = null;
+      right = null;
+      _isLoading = false; 
+    });
+  }
+
   Future<void> _pickDate() async {
     if (_isViewMode) return;
 
@@ -178,7 +209,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
     });
   }
 
-Future<void> _saveToDatabase() async {
+  Future<void> _saveToDatabase() async {
     // 1. ป้องกันการกดซ้อน
     if (_isLoading) return;
 
@@ -226,13 +257,11 @@ Future<void> _saveToDatabase() async {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
         
-        // อ่านข้อมูลแบบ Dynamic เพื่อป้องกัน Type Error
         final dynamic responseData = jsonDecode(response.body);
         final String hn = (responseData is Map && responseData['hn'] != null) 
                           ? responseData['hn'].toString() 
                           : '';
         
-        // โชว์แจ้งเตือนสีเขียวก่อน
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('เพิ่มข้อมูลผู้ป่วยสำเร็จ ${hn.isNotEmpty ? "(รหัสประจำตัว: $hn)" : ""}'), 
@@ -240,15 +269,21 @@ Future<void> _saveToDatabase() async {
           ),
         );
 
-        // ✅ ปิดหน้าต่างทันที และจบการทำงาน
-        Navigator.of(context).pop(true);
+        // ✅ ล้างฟอร์ม ไม่ต้องปิดหน้าต่าง
+        _resetForm();
+
+        // ✅ เรียกใช้งานฟังก์ชันรีเฟรชตารางของหน้าหลัก
+        if (widget.onPatientAdded != null) {
+          widget.onPatientAdded!();
+        }
+
         return; 
       } 
       
       // --- กรณีบันทึกไม่สำเร็จ (Error จากเซิร์ฟเวอร์) ---
       else {
         if (!mounted) return;
-        setState(() => _isLoading = false); // หยุดโหลดเพื่อให้แก้ไขข้อมูลได้
+        setState(() => _isLoading = false);
 
         try {
           final dynamic errorData = jsonDecode(response.body);
@@ -267,18 +302,15 @@ Future<void> _saveToDatabase() async {
       }
 
     } catch (e) {
-      // --- กรณีเกิด Exception (เช่น เน็ตหลุด หรือ UI พัง) ---
       if (!mounted) return;
       setState(() => _isLoading = false);
       
-      // ถ้า Error เป็นเรื่อง UI ล็อค ให้ข้ามการโชว์สีแดงไปเลย
       if (e.toString().contains('!_debugLocked')) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('การเชื่อมต่อมีปัญหา: ${e.toString()}'), backgroundColor: Colors.red),
       );
     }
-    // 💡 ลบบล็อก finally ออกไปเลยครับ เพื่อความปลอดภัยสูงสุด
   }
 
   @override
@@ -303,7 +335,17 @@ Future<void> _saveToDatabase() async {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(dialogTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              // 💡 เพิ่มปุ่ม X ปิดหน้าต่างไว้มุมขวาบน
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(dialogTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.grey),
+                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(), 
+                  ),
+                ],
+              ),
               if (widget.existingPatient == null)
                 const Text("กรอกข้อมูลสำหรับผู้ป่วยใหม่ (ช่องที่มี * จำเป็นต้องกรอก)", style: TextStyle(color: Colors.grey, fontSize: 14)),
               const SizedBox(height: 24),
@@ -353,7 +395,7 @@ Future<void> _saveToDatabase() async {
                 children: [
                   Expanded(child: _buildTextField("เบอร์โทรศัพท์", "08xxxxxxxx", controller: _phoneCtrl, isNumber: true, maxLength: 10, enabled: !_isViewMode, isRequired: true)),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildTextField("อีเมล", "name@example.com", controller: _emailCtrl, enabled: !_isViewMode)), // อีเมลไม่บังคับแล้ว
+                  Expanded(child: _buildTextField("อีเมล", "name@example.com", controller: _emailCtrl, enabled: !_isViewMode)), 
                 ],
               ),
               const SizedBox(height: 16),
@@ -403,31 +445,39 @@ Future<void> _saveToDatabase() async {
               ),
               const SizedBox(height: 30),
 
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : () { 
-                    if (_isViewMode) {
-                      setState(() => _isViewMode = false);
-                    } else {
-                      _saveToDatabase();
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: saveButtonColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              // 💡 เพิ่มปุ่มปิด/ยกเลิก ไว้ข้างปุ่มบันทึก
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    child: const Text("ปิดหน้าต่าง", style: TextStyle(color: Colors.grey, fontSize: 16)),
                   ),
-                  child: _isLoading 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : Text(
-                          _isViewMode 
-                            ? "แก้ไขข้อมูลผู้ป่วย" 
-                            : (widget.existingPatient != null ? "บันทึกการแก้ไข" : "บันทึกข้อมูลผู้ป่วย"), 
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
-                        ),
-                ),
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : () { 
+                      if (_isViewMode) {
+                        setState(() => _isViewMode = false);
+                      } else {
+                        _saveToDatabase();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: saveButtonColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: _isLoading 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(
+                            _isViewMode 
+                              ? "แก้ไขข้อมูลผู้ป่วย" 
+                              : (widget.existingPatient != null ? "บันทึกการแก้ไข" : "บันทึกข้อมูลผู้ป่วย"), 
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                          ),
+                  ),
+                ],
               ),
             ],
           ),
