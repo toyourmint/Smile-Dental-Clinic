@@ -71,13 +71,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         Text(
-                          currentUser.name,
+                          widget.userName,   // ✅ ใช้ชื่อจากหน้า Login
                           style: GoogleFonts.kanit(
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
                         ),
+
                       ],
                     ),
                     _buildProfileAvatar(),
@@ -148,76 +149,55 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQueueCard(AppointmentModel booking) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF448AFF), Color(0xFF2979FF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [Color(0xFF448AFF), Color(0xFF2979FF)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const CircleAvatar(
-                backgroundImage: NetworkImage(
-                  'https://i.pravatar.cc/150?img=11',
-                ),
-                radius: 22,
+      borderRadius: BorderRadius.circular(30),
+    ),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            const CircleAvatar(
+              backgroundImage: NetworkImage(
+                'https://i.pravatar.cc/150?img=11',
               ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    currentUser.name,
-                    style: GoogleFonts.kanit(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    "บริการ: ${booking.serviceName.replaceAll('\n', ' ')}",
-                    style: const TextStyle(
-                      color: ColorUtils.whiteCC,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 15),
-            child: Divider(color: Colors.white24),
-          ),
-          IntrinsicHeight(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              radius: 22,
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildQueueInfo("คิวของคุณ", "${booking.queueNumber}"),
-                const VerticalDivider(color: Colors.white24, thickness: 1),
-                _buildQueueInfo("คิวปัจจุบัน", "$currentClinicQueue"),
+                Text(
+                  widget.userName,   // ✅ ใช้ชื่อตอน login
+                  style: GoogleFonts.kanit(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  "บริการ: ${booking.serviceName.replaceAll('\n', ' ')}",
+                  style: const TextStyle(
+                    color: ColorUtils.whiteCC,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
 
   Widget _buildNoBookingCard() {
     return Container(

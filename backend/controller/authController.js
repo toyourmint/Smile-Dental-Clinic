@@ -256,65 +256,74 @@ exports.addUserByAdmin = async (req, res) => {
 // LOGIN  ✅ FIX bcrypt + PENDING
 // =================================================
 exports.login = async (req, res) => {
+  try {
     const { loginIdentifier, password } = req.body;
 
-    if (!loginIdentifier || !password) {
-        return res.status(400).json({ message: "กรุณากรอก Email/เบอร์โทร และรหัสผ่าน" });
+    const [rows] = await pool.execute(
+      `SELECT 
+          u.id,
+          u.email,
+          u.password,
+          u.role,
+          p.first_name,
+          p.last_name
+       FROM users u
+       LEFT JOIN user_profiles p ON u.id = p.user_id
+       WHERE (u.email = ? OR u.phone = ?)
+       AND u.is_active = 1`,
+      [loginIdentifier, loginIdentifier]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({
+        message: "ไม่พบผู้ใช้ หรือบัญชียังไม่ถูกเปิดใช้งาน"
+      });
     }
 
-    try {
+    const user = rows[0];
 
-        const [rows] = await pool.execute(
-            'SELECT * FROM users WHERE (email = ? OR phone = ?) AND is_active = 1',
-            [loginIdentifier, loginIdentifier]
-        );
-
-        if (rows.length === 0) {
-            return res.status(401).json({
-                message: "ไม่พบผู้ใช้ หรือบัญชียังไม่ถูกเปิดใช้งาน"
-            });
-        }
-
-        const user = rows[0];
-
-        // 🔴 FIX: ป้องกัน bcrypt พัง
-        if (user.password === 'PENDING') {
-            return res.status(403).json({
-                message: 'บัญชียังไม่ได้ตั้งรหัสผ่าน กรุณายืนยัน OTP ก่อน'
-            });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            return res.status(401).json({ message: "รหัสผ่านไม่ถูกต้อง" });
-        }
-
-        const token = jwt.sign(
-            {
-                userId: user.id,
-                email: user.email,
-                role: user.role
-            },
-            process.env.JWT_SECRET || 'secret_key',
-            { expiresIn: '8h' }
-        );
-
-        res.status(200).json({
-            message: 'เข้าสู่ระบบสำเร็จ',
-            token,
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role
-            }
-        });
-
-    } catch (error) {
-        console.error('Login Error:', error);
-        res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
+    // 🔴 บัญชีรอ OTP
+    if (user.password === 'PENDING') {
+      return res.status(403).json({
+        message: 'บัญชียังไม่ได้ตั้งรหัสผ่าน กรุณายืนยัน OTP ก่อน'
+      });
     }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "รหัสผ่านไม่ถูกต้อง" });
+    }
+
+    // ✅ สร้าง token
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        role: user.role,
+        first_name: user.first_name
+      },
+      process.env.JWT_SECRET || 'secret_key',
+      { expiresIn: '8h' }
+    );
+
+    res.status(200).json({
+      message: 'เข้าสู่ระบบสำเร็จ',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        first_name: user.first_name,
+        last_name: user.last_name
+      }
+    });
+
+  } catch (error) {
+    console.error('Login Error:', error);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
+  }
 };
+
 
 // =================================================
 // FORGOT PASSWORD

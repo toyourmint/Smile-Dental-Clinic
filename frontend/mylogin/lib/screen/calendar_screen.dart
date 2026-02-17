@@ -132,46 +132,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ],
           ),
         ),
-        // ปุ่มถัดไป
-        Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      DateTimeSelectionScreen(serviceName: selectedService),
-                ),
-              ).then((_) {
-                // *** สำคัญ: เมื่อกลับมาจากหน้าจอง ให้รีเฟรชหน้าจอเพื่อแสดงข้อมูลใหม่ ***
-                _refresh();
-                // สลับไปหน้า "คิว" เพื่อให้ User เห็นรายการทันที
-                if (myAppointments.isNotEmpty) {
-                  setState(() {
-                    isBookingSelected = false;
-                  });
-                }
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              elevation: 5,
-            ),
-            child: Text(
-              "ถัดไป",
-              style: GoogleFonts.kanit(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
         const SizedBox(height: 20),
       ],
     );
@@ -180,12 +140,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _buildServiceCard(String title, IconData icon) {
     bool isSelected = selectedService == title;
     return GestureDetector(
-      onTap: () => setState(() => selectedService = title),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      onTap: () {
+        // 1. อัปเดตตัวแปรว่าเลือกบริการนี้
+        setState(() {
+          selectedService = title;
+        });
+
+        // 2. สั่งเปลี่ยนหน้าทันที (Logic เดิมที่เคยอยู่ในปุ่ม)
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                DateTimeSelectionScreen(serviceName: title), // ส่งชื่อบริการที่กดไป
+          ),
+        ).then((_) {
+          // 3. เมื่อกลับมาจากหน้าจอง ให้รีเฟรชหน้าจอ
+          _refresh();
+          if (myAppointments.isNotEmpty) {
+            setState(() {
+              // สลับไปแท็บคิว เพื่อดูรายการนัด
+              isBookingSelected = false; 
+            });
+          }
+        });
+      },
+      child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF42A5F5) : Colors.white,
+          // เปลี่ยนสีถ้าถูกเลือก (Optional)
+          color: isSelected ? Colors.blue.shade50 : Colors.white,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.grey.shade200,
+            width: isSelected ? 2 : 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withOpacity(0.1),
@@ -193,26 +180,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
               offset: const Offset(0, 5),
             ),
           ],
-          border: isSelected
-              ? Border.all(color: Colors.blue.shade700, width: 2)
-              : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: 40,
-              color: isSelected ? Colors.white : const Color(0xFF42A5F5),
+              size: 35,
+              color: isSelected ? Colors.blue : Colors.grey.shade600,
             ),
             const SizedBox(height: 10),
             Text(
               title,
               textAlign: TextAlign.center,
               style: GoogleFonts.kanit(
-                fontSize: 12,
-                color: isSelected ? Colors.white : Colors.black54,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.blue : Colors.grey.shade700,
               ),
             ),
           ],
@@ -220,6 +204,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
     );
   }
+  
 
   // ==========================================
   // ส่วนที่ 3: หน้ารายการนัดหมาย (Appointment List)
