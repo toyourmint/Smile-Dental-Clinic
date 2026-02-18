@@ -96,6 +96,57 @@ exports.nextQueueNo = async (req, res) => {
     }
 };
 
+exports.skipQueueNo = async (req, res) => {
+    const { room } = req.query;
+    try {
+        // 1. เปลี่ยนคิวปัจจุบัน (in_room) ของห้องนั้น ให้เป็น "ข้าม" (skipped)
+        await db.query(`
+            UPDATE queues 
+            SET status = 'skipped' 
+            WHERE room = ? AND status = 'in_room' AND queue_date = CURDATE()
+        `, [room]);
+
+        // 2. ค้นหาคิวที่รออยู่ (waiting) ของห้องนั้น ที่คิวน้อยที่สุด (คิวถัดไป)
+        const [nextQueueRows] = await db.query(`
+            SELECT id, queue_number, user_id 
+            FROM queues 
+            WHERE room = ? AND status = 'waiting' AND queue_date = CURDATE()
+            ORDER BY queue_number ASC 
+            LIMIT 1
+        `, [room]);
+
+        // ถ้าข้ามคิวแล้ว แต่ไม่มีใครรอคิวอยู่เลย
+        if (nextQueueRows.length === 0) {
+            // ตอบกลับไปบอก Frontend ว่าห้องว่างแล้ว
+            return res.status(200).json({ 
+                message: "ข้ามคิวสำเร็จ แต่ไม่มีคิวรอแล้ว", 
+                called_queue: '-' 
+            });
+        }
+
+        const nextQueue = nextQueueRows[0];
+
+        // 3. อัปเดตคิวคนที่รออยู่ให้เป็น กำลังตรวจ (in_room)
+        await db.query(`
+            UPDATE queues 
+            SET status = 'in_room' 
+            WHERE id = ?
+        `, [nextQueue.id]);
+
+        const currentQueueLabel = `${room}${nextQueue.queue_number}`;
+
+        // ตอบกลับไปบอก Frontend ว่าคิวต่อไปคือเลขอะไร
+        res.status(200).json({ 
+            message: "ข้ามคิวสำเร็จ และเรียกคิวถัดไปเรียบร้อย", 
+            called_queue: currentQueueLabel 
+        });
+
+    } catch (error) {
+        console.error("Error skipping queue:", error);
+        res.status(500).json({ error: "ระบบขัดข้องในการข้ามคิว" });
+    }
+};
+
 exports.getRoomQueues = async (req, res) => {
     try {
         // ดึงคิวที่กำลังตรวจ (in_room) ของวันนี้ แยกตามห้อง
