@@ -4,8 +4,8 @@ const apmController = require('../controller/apmController');
 
 const verify = require('../middlewares/authMiddleware');
 
-router.post('/bookAppointmentByUser', verify, apmController.bookAppointmentByUser);
-router.post('/bookAppointmentByAdmin', verify, apmController.bookAppointmentByAdmin);
+router.post('/apmUser', verify, apmController.bookAppointmentByUser);
+router.post('/apmAdmin', verify, apmController.bookAppointmentByAdmin);
 router.get('/slots', apmController.getAvailableSlots);
 
 module.exports = router;
