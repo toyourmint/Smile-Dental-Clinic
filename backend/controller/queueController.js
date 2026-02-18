@@ -40,8 +40,23 @@ exports.generateQueueNo = async (req, res) => {
 exports.nextQueueNo = async (req, res) => {
     const { room } = req.query;
     try {
-        await pool.query(`UPDATE queues SET status = 'done' WHERE room = ? AND status = 'in_room' AND queue_date = CURDATE()`, [room]);
+        // 💡 1. เพิ่มคำสั่งนี้: เปลี่ยนสถานะนัดหมาย (appointments) เป็น 'completed'
+        // โดยเชื่อมตาราง (JOIN) เพื่อหาว่าใครที่กำลังเป็น 'in_room' ในห้องนี้อยู่
+        await pool.query(`
+            UPDATE appointments a
+            JOIN queues q ON a.id = q.appointment_id
+            SET a.status = 'completed'
+            WHERE q.room = ? AND q.status = 'in_room' AND q.queue_date = CURDATE()
+        `, [room]);
 
+        // 💡 2. เปลี่ยนสถานะคิว (queues) ปัจจุบันเป็น 'done' (ของเดิมของคุณ)
+        await pool.query(`
+            UPDATE queues 
+            SET status = 'done' 
+            WHERE room = ? AND status = 'in_room' AND queue_date = CURDATE()
+        `, [room]);
+
+        // 3. ค้นหาคิวที่รออยู่ (waiting) เพื่อเรียกเข้าห้องต่อไป
         const [nextQueueRows] = await pool.query(`
             SELECT id, queue_number, user_id 
             FROM queues 
@@ -49,18 +64,23 @@ exports.nextQueueNo = async (req, res) => {
             ORDER BY queue_number ASC LIMIT 1
         `, [room]);
 
-        if (nextQueueRows.length === 0) return res.status(200).json({ message: "ไม่มีคิวรอแล้ว" });
+        if (nextQueueRows.length === 0) {
+            return res.status(200).json({ message: "ไม่มีคิวรอแล้ว" });
+        }
 
         const nextQueue = nextQueueRows[0];
+        
+        // 4. อัปเดตคิวคนที่รอให้เป็น กำลังตรวจ (in_room)
         await pool.query(`UPDATE queues SET status = 'in_room' WHERE id = ?`, [nextQueue.id]);
 
         const currentQueueLabel = `${room}${nextQueue.queue_number}`;
         
-        // 💡 io.emit คอมเมนต์ไว้ก่อน (เผื่ออนาคตทำจอทีวีเรียกคิว)
+        // io.emit คอมเมนต์ไว้ก่อน
         // if(global.io) io.emit('QUEUE_UPDATED', { room: room, current_queue: currentQueueLabel });
 
         res.status(200).json({ message: "เรียกคิวถัดไปสำเร็จ", called_queue: currentQueueLabel });
     } catch (error) {
+        console.error("Error calling next queue:", error);
         res.status(500).json({ error: "ระบบขัดข้อง" });
     }
 };
