@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mylogin/screen/appointment_modal.dart';
 import '../services/appointment_service.dart';
+import '../services/doctor_service.dart';
+
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -15,11 +17,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int currentClinicQueue = 0;
   bool isLoading = true;
+  List<Doctor> doctors = [];
+  bool isDoctorLoading = true;
+
 
   @override
   void initState() {
     super.initState();
     _loadQueue();
+    _loadDoctors(); 
   }
 
   /// โหลดคิวปัจจุบันของคลินิก
@@ -37,6 +43,21 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => isLoading = false);
     }
   }
+  Future<void> _loadDoctors() async {
+  try {
+    doctors = await DoctorService.fetchDoctors();
+    print("Loaded doctors: ${doctors.length}");
+  } catch (e) {
+    print("Doctor load error: $e");
+  }
+
+  if (mounted) {
+    setState(() {
+      isDoctorLoading = false;
+    });
+  }
+}
+
 
   String _getGreeting() {
     var hour = DateTime.now().hour;
@@ -102,17 +123,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 15),
 
-                _buildDoctorCard(
-                  name: "Dr. Joseph Brostito",
-                  specialty: "Dental Specialist",
-                  image: "https://i.pravatar.cc/150?img=68",
-                ),
-                const SizedBox(height: 15),
-                _buildDoctorCard(
-                  name: "Dr. Imran Syahir",
-                  specialty: "General Dentist",
-                  image: "https://i.pravatar.cc/150?img=12",
-                ),
+                if (isDoctorLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (doctors.isEmpty)
+                  Text("ไม่พบรายชื่อทันตแพทย์",
+                      style: GoogleFonts.kanit(color: Colors.grey))
+                else
+                  Column(
+                    children: doctors.map((doc) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 15),
+                        child: _buildDoctorCard(
+                          name: doc.name,
+                          specialty: "ทันตแพทย์ทั่วไป",
+                          image: "https://i.pravatar.cc/150?img=${doc.id}",
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
               ],
             ),
           ),
@@ -260,38 +289,79 @@ class _HomeScreenState extends State<HomeScreen> {
   /// ================= DOCTOR CARD =================
   Widget _buildDoctorCard({
     required String name,
-    required String specialty,
-    required String image,
+    String? specialty,
+    String? image,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(15),
-            child: Image.network(image,
-                width: 60, height: 60, fit: BoxFit.cover),
+            child: image != null && image.isNotEmpty
+                ? Image.network(
+                    image,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _defaultAvatar();
+                    },
+                  )
+                : _defaultAvatar(),
           ),
           const SizedBox(width: 15),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold)),
-              Text(specialty,
-                  style: TextStyle(color: Colors.grey[500])),
-            ],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  specialty ?? "General Doctor",
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 }
+
+Widget _defaultAvatar() {
+  return Container(
+    width: 60,
+    height: 60,
+    decoration: BoxDecoration(
+      color: Colors.grey[300],
+      borderRadius: BorderRadius.circular(15),
+    ),
+    child: const Icon(Icons.person, size: 30, color: Colors.white),
+  );
+}
+
 
 class ColorUtils {
   static const Color whiteCC = Color(0xCCFFFFFF);

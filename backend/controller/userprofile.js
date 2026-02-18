@@ -171,7 +171,7 @@ exports.getDoctorProfile = async (req, res) => {
     try {
         const sql = `
         SELECT 
-            doctor_id,
+            id,
             doctor_name
         FROM doctors
         `;
