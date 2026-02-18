@@ -30,8 +30,8 @@ exports.bookAppointmentByUser = async (req, res) => {
 
         const insertSql = `
             INSERT INTO appointments 
-            (user_id, doctor_id, appointment_date, appointment_time, reason, notes) 
-            VALUES (?, NULL, ?, ?, ?, ?)
+            (user_id, doctor_id, appointment_date, appointment_time, reason, notes, status) 
+            VALUES (?, NULL, ?, ?, ?, ?, 'booking')
         `;
         const [result] = await connection.execute(insertSql, [user_id, appointment_date, appointment_time, reason || null, notes || null]);
 
@@ -51,7 +51,6 @@ exports.bookAppointmentByAdmin = async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-        // 💡 รับค่า hn และ doctor_name มาจาก Flutter
         const { hn, doctor_name, appointment_date, appointment_time, reason, notes } = req.body;
 
         if (!hn || !appointment_date || !appointment_time) {
@@ -70,7 +69,16 @@ exports.bookAppointmentByAdmin = async (req, res) => {
         }
         const user_id = users[0].user_id;
 
-        // 2. เช็คโควตาคิว 4 คน
+        // 💡 2. หา id หมอให้ถูกต้อง (แก้ตามไฟล์ 009_create_doctors.sql)
+        let doctor_id = null;
+        if (doctor_name && doctor_name !== "-") {
+            const [docs] = await connection.execute('SELECT id FROM doctors WHERE doctor_name = ? LIMIT 1', [doctor_name]);
+            if (docs.length > 0) {
+                doctor_id = docs[0].id;
+            }
+        }
+
+        // 3. เช็คโควตาคิว 4 คน
         const checkCapacitySql = `
             SELECT COUNT(id) as total_bookings 
             FROM appointments 
@@ -85,14 +93,13 @@ exports.bookAppointmentByAdmin = async (req, res) => {
             return res.status(400).json({ success: false, message: 'คิวเวลานี้เต็มแล้ว (ครบ 4 คน)' });
         }
 
-        // 3. บันทึกข้อมูลเข้าฐานข้อมูล
+        // 💡 4. บันทึกข้อมูลเข้าตาราง (ใส่ doctor_id และ notes แยกกันอย่างชัดเจน)
         const insertSql = `
             INSERT INTO appointments 
             (user_id, doctor_id, appointment_date, appointment_time, reason, notes, status) 
-            VALUES (?, NULL, ?, ?, ?, ?, 'booking')
+            VALUES (?, ?, ?, ?, ?, ?, 'booking')
         `;
-        const fullNotes = `แพทย์: ${doctor_name || '-'} | ${notes || ''}`;
-        const [result] = await connection.execute(insertSql, [user_id, appointment_date, appointment_time, reason || null, fullNotes]);
+        const [result] = await connection.execute(insertSql, [user_id, doctor_id, appointment_date, appointment_time, reason || null, notes || null]);
 
         await connection.commit();
         res.status(201).json({ success: true, message: 'เพิ่มการนัดหมายสำเร็จ', appointmentId: result.insertId });
@@ -151,15 +158,17 @@ exports.getAvailableSlots = async (req, res) => {
     }
 };
 
-// 💡 เพิ่มฟังก์ชันสำหรับดึงตารางนัดหมายทั้งหมด
+// 💡 5. ดึงข้อมูลตาราง โดยเชื่อมกับ d.id ของหมอให้ถูกต้อง
 exports.getAllAppointments = async (req, res) => {
     try {
         const sql = `
             SELECT a.id as apt_id, a.appointment_date, a.appointment_time, a.status, a.reason, a.notes,
-                   p.hn, p.title, p.first_name, p.last_name, u.phone
+                   p.hn, p.title, p.first_name, p.last_name, u.phone, 
+                   d.doctor_name 
             FROM appointments a
             JOIN users u ON a.user_id = u.id
             JOIN user_profiles p ON u.id = p.user_id
+            LEFT JOIN doctors d ON a.doctor_id = d.id
             ORDER BY a.appointment_date DESC, a.appointment_time ASC
         `;
         const [rows] = await pool.execute(sql);
@@ -170,7 +179,6 @@ exports.getAllAppointments = async (req, res) => {
     }
 };
 
-// 💡 เพิ่มฟังก์ชันยกเลิกนัดหมาย
 exports.cancelAppointment = async (req, res) => {
     try {
         const { id } = req.params;

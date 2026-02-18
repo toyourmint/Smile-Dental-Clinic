@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screen/data/data_store.dart';
 
-
-// เปลี่ยนเป็น StatefulWidget เพื่อให้หน้าจอจัดการตัวกรอง (Filter) ได้
 class DailyPatientTable extends StatefulWidget {
-  final List<AppointmentModel> patients;
+  final List<dynamic> patients;
   final Function(int) onAddToQueue;
 
   const DailyPatientTable({
@@ -25,13 +22,16 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
   Widget build(BuildContext context) {
     
     // --- 1. กรองข้อมูล (Filter Logic) ตามสถานะที่เลือก ---
-    List<AppointmentModel> filteredPatients = widget.patients.where((p) {
+    List<dynamic> filteredPatients = widget.patients.where((p) {
+      String status = p['current_status'] ?? "Confirmed";
+      
       if (_selectedFilter == "ทั้งหมด") return true;
-      if (_selectedFilter == "ยังไม่มา" && p.status == "Confirmed") return true;
-      if (_selectedFilter == "รอเรียกคิว" && p.status == "Waiting") return true;
-      if (_selectedFilter == "กำลังตรวจ" && p.status == "InQueue") return true;
-      if (_selectedFilter == "เสร็จสิ้น" && p.status == "Done") return true;
-      if (_selectedFilter == "ข้าม" && (p.status == "Skipped" || p.status == "Cancelled")) return true;
+      if (_selectedFilter == "ยังไม่มา" && status == "Confirmed") return true;
+      if (_selectedFilter == "รอเรียกคิว" && status == "Waiting") return true;
+      if (_selectedFilter == "กำลังตรวจ" && status == "InQueue") return true;
+      if (_selectedFilter == "เสร็จสิ้น" && status == "Done") return true;
+      if (_selectedFilter == "ข้าม" && (status == "Skipped" || status == "Cancelled")) return true;
+      
       return false; // นอกเหนือจากนี้ไม่แสดง
     }).toList();
 
@@ -102,7 +102,6 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
               children: const [
                 SizedBox(width: 50), // เว้นที่ Avatar
                 Expanded(flex: 2, child: Text("ชื่อผู้ป่วย", style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text("วันที่", style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(flex: 1, child: Text("เวลา", style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(flex: 2, child: Text("ประเภทการรักษา", style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(flex: 2, child: Text("แพทย์", style: TextStyle(fontWeight: FontWeight.bold))),
@@ -128,9 +127,17 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
                   itemBuilder: (context, index) {
                     final p = filteredPatients[index];
                     
-                    // สำคัญมาก: ต้องหา Index ที่แท้จริงใน List หลัก เพื่อให้ตอนกดรับคิวไม่ผิดคน
+                    // หา Index ที่แท้จริงใน List หลัก เพื่อให้ตอนกดรับคิวตรงกับข้อมูลจริง
                     final actualIndex = widget.patients.indexOf(p);
                     
+                    // จัดการการแสดงผลชื่อและเวลา
+                    String name = "${p['first_name'] ?? ''} ${p['last_name'] ?? ''}".trim();
+                    String timeStr = p['appointment_time']?.toString() ?? "-";
+                    // เปลี่ยนจาก "09:00:00" เป็น "09.00 น."
+                    if (timeStr.length >= 5) {
+                      timeStr = "${timeStr.substring(0, 2)}.${timeStr.substring(3, 5)} น.";
+                    }
+
                     return Container(
                       margin: const EdgeInsets.only(top: 8),
                       decoration: BoxDecoration(
@@ -143,7 +150,7 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
                           CircleAvatar(
                             radius: 18, 
                             backgroundColor: Colors.blue.shade100, 
-                            child: Text(p.name.isNotEmpty ? p.name[0] : "?")
+                            child: Text(name.isNotEmpty ? name[0] : "?", style: TextStyle(color: Colors.blue.shade900))
                           ),
                           const SizedBox(width: 14),
                           
@@ -153,12 +160,12 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
                                 const SizedBox(height: 4),
                                 Text(
-                                  p.id, 
+                                  "Apt. ${p['appointment_id']}", 
                                   style: const TextStyle(
-                                    fontSize: 13, 
+                                    fontSize: 11, 
                                     color: Color(0xFF1976D2), 
                                     fontWeight: FontWeight.w600
                                   )
@@ -167,19 +174,18 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
                             ),
                           ),
                           
-                          Expanded(flex: 1, child: Text(p.date, style: const TextStyle(color: Colors.black87))),
-                          Expanded(flex: 1, child: Text(p.time, style: const TextStyle(color: Colors.black87))),
-                          Expanded(flex: 2, child: Text(p.treatment, style: const TextStyle(color: Colors.black54))),
-                          Expanded(flex: 2, child: Text(p.doctor, style: const TextStyle(color: Colors.black54))),
-                          Expanded(flex: 2, child: Text(p.phone, style: const TextStyle(color: Colors.black54))),
+                          Expanded(flex: 1, child: Text(timeStr, style: const TextStyle(color: Colors.black87))),
+                          Expanded(flex: 2, child: Text(p['treatment'] ?? "-", style: const TextStyle(color: Colors.black54))),
+                          Expanded(flex: 2, child: Text(p['doctor_name'] ?? "-", style: const TextStyle(color: Colors.black54))),
+                          Expanded(flex: 2, child: Text(p['phone'] ?? "-", style: const TextStyle(color: Colors.black54))),
                           
                           Expanded(
                             flex: 2,
                             child: Align(
                               alignment: Alignment.centerLeft,
                               child: _buildStatusButton(
-                                status: p.status, 
-                                // ส่ง actualIndex กลับไปหาหน้าหลัก
+                                status: p['current_status'] ?? "Confirmed", 
+                                // ส่ง actualIndex กลับไปหาหน้าหลักเมื่อกดปุ่ม
                                 onTap: () => widget.onAddToQueue(actualIndex) 
                               ),
                             ),
@@ -204,7 +210,7 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
     if (status == "Confirmed") {
       bgColor = const Color(0xFF42A5F5); 
       label = "รับคิว"; 
-      isClickable = true; 
+      isClickable = true; // ให้ปุ่มนี้กดได้เท่านั้น
     } else if (status == "Waiting") {
       bgColor = Colors.orangeAccent; 
       label = "รอเรียกคิว";
@@ -215,7 +221,7 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
       bgColor = Colors.green; 
       label = "เสร็จสิ้น";
     } else if (status == "Skipped") {
-      bgColor = const Color(0xFFFFB74D); // สีส้มอ่อน (Pastel Orange) ตามที่ตั้งไว้
+      bgColor = const Color(0xFFFFB74D); // สีส้มอ่อน (Pastel Orange)
       label = "ข้าม"; 
     } else if (status == "Cancelled") {
       bgColor = Colors.red;
@@ -241,6 +247,7 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
       ),
     );
 
+    // ถ้ากดได้ให้ใส่ InkWell ครอบ
     if (isClickable) {
       return Material(
         color: Colors.transparent,

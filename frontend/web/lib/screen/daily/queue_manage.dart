@@ -44,7 +44,6 @@ class QueueManagerSection extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text("สถานะคิวปัจจุบัน", style: TextStyle(fontWeight: FontWeight.bold)),
-                            // ถ้าเป็นขีด - ให้เล็กลงหน่อย ถ้าเป็นเลขให้ใหญ่
                             Text(
                               queueNumber, 
                               style: TextStyle(
@@ -91,7 +90,7 @@ class QueueManagerSection extends StatelessWidget {
                   
                   const SizedBox(height: 24),
 
-                  // --- รายการคิวถัดไป (Next 2) ---
+                  // --- รายการคิวถัดไป ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: const [
@@ -108,7 +107,7 @@ class QueueManagerSection extends StatelessWidget {
                       child: Text("- ไม่มีคิวรอ -", style: TextStyle(color: Colors.grey.shade400)),
                     ),
 
-                  // Loop แสดงรายการคิวที่รอ (แค่ 2 คน ตามที่ส่งมา)
+                  // Loop แสดงรายการคิวที่รอ
                   ...nextQueues.map((q) => Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
                     child: Row(
@@ -139,6 +138,7 @@ class QueueManagerSection extends StatelessWidget {
     );
   }
 
+  // Helper สำหรับสร้างปุ่ม
   Widget _buildBtn(String text, Color color, VoidCallback? onTap) {
     return SizedBox(
       height: 40,

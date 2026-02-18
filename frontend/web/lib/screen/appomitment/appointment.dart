@@ -329,8 +329,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                         String statusText = isCancelled ? "ยกเลิก" : (item['status'] ?? "Confirmed");
                         
                         // ดึงชื่อหมอออกมาจากช่อง notes
-                        String notes = item['notes'] ?? "";
-                        String doctor = notes.contains('|') ? notes.split('|')[0].trim() : "-"; 
+                        String doctor = item['doctor_name'] ?? "-"; 
 
                         return Container(
                           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
