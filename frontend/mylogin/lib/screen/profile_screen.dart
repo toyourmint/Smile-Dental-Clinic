@@ -30,15 +30,15 @@ class _ProfileScreenState extends State<ProfileScreen>
   /// 🔹 API
   //////////////////////////////////////////////////////
   Future<void> fetchUser() async {
-    // 🌟 1. ลบ ?id= ออกจาก URL
     final url = Uri.parse("http://10.0.2.2:3000/api/user/getprofiles");
 
     try {
-      // 🌟 2. ดึง Token ที่เซฟไว้ตอนล็อกอิน
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? myToken = prefs.getString('my_token');
 
-      // ตรวจสอบว่ามี Token ไหม
+      print("TOKEN FOUND: $myToken");
+
+      // ✅ ตรวจ token
       if (myToken == null || myToken.isEmpty) {
         setState(() {
           errorMessage = "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่";
@@ -47,12 +47,11 @@ class _ProfileScreenState extends State<ProfileScreen>
         return;
       }
 
-      // 🌟 3. แนบ Token ไปใน Headers
       final response = await http.get(
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $myToken', 
+          'Authorization': 'Bearer $myToken',
         },
       );
 
@@ -66,7 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         });
       } else if (response.statusCode == 401 || response.statusCode == 403) {
         setState(() {
-          errorMessage = "ไม่มีสิทธิ์เข้าถึง (Token อาจหมดอายุ)";
+          errorMessage = "Token หมดอายุ กรุณาเข้าสู่ระบบใหม่";
           isLoading = false;
         });
       } else {
