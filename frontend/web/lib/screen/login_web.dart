@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/screen/home_web.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -11,6 +14,71 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  
+  // เพิ่มตัวแปรเช็คสถานะกำลังโหลด
+  bool _isLoading = false;
+
+  // ฟังก์ชัน Login เชื่อมต่อ Backend
+  Future<void> _login() async {
+    // 1. ตรวจสอบข้อมูลว่าง
+    if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณากรอกอีเมลและรหัสผ่าน'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // 2. ยิง API ไปที่ Backend
+      final response = await http.post(
+        Uri.parse('http://localhost:3000/api/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          // Backend ของคุณใช้ชื่อตัวแปร loginIdentifier รับค่า email หรือ phone
+          "loginIdentifier": _emailController.text.trim(),
+          "password": _passwordController.text.trim(),
+        }),
+      );
+
+      if (!mounted) return;
+
+      final data = jsonDecode(response.body);
+
+      // 3. เช็คผลลัพธ์
+      if (response.statusCode == 200) {
+        // --- Login สำเร็จ ---
+        
+        // บันทึก Token และข้อมูลผู้ใช้ลงเครื่อง
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('my_token', data['token']);
+        await prefs.setString('user_role', data['user']['role']);
+        await prefs.setInt('user_id', data['user']['id']);
+        await prefs.setString('user_name', "${data['user']['first_name']} ${data['user']['last_name']}");
+
+        // ไปหน้า Home
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      } else {
+        // --- Login ไม่สำเร็จ ---
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'เข้าสู่ระบบไม่สำเร็จ'), 
+            backgroundColor: Colors.red
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 30),
 
                     _buildTextField(
-                      label: 'อีเมล', // ในรูปเป็น text ธรรมดา
+                      label: 'อีเมล หรือ เบอร์โทรศัพท์', // ปรับ label ให้สื่อความหมายตรง backend
                       controller: _emailController,
                       obscureText: false,
                     ),
@@ -108,17 +176,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: ใส่ Logic การ Login ตรงนี้
-                          print("Email: ${_emailController.text}");
-                          print("Password: ${_passwordController.text}");
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const HomeScreen(),
-                            ),
-                          );
-                        },
+                        // ถ้ากำลังโหลด ให้ปิดปุ่มกด
+                        onPressed: _isLoading ? null : _login,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryBlue,
                           foregroundColor: Colors.white,
@@ -127,13 +186,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          'เข้าสู่ระบบ',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isLoading 
+                          ? const SizedBox(
+                              width: 24, 
+                              height: 24, 
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                            )
+                          : const Text(
+                              'เข้าสู่ระบบ',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                       ),
                     ),
                   ],
@@ -146,36 +211,26 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-// แก้ไขฟังก์ชันนี้ในไฟล์ login_screen.dart
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
     required bool obscureText,
   }) {
-    // ลบ Column และ Text ที่แยกออกมาทิ้งไป
-    // เหลือไว้แค่ TextField ตัวเดียว
     return TextField(
       controller: controller,
       obscureText: obscureText,
       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
       decoration: InputDecoration(
-        // 1. ใส่ Label ที่นี่
         labelText: label, 
-        // 2. ตั้งค่าสไตล์ให้ Label เป็นสีเทา
         labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
-        // 3. คำสั่งสำคัญ! บังคับให้ Label ลอยอยู่บนเส้นขอบตลอดเวลา
         floatingLabelBehavior: FloatingLabelBehavior.always, 
-        
-        // ปรับระยะห่างภายในนิดหน่อยให้สวยงาม
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          // ปรับสีเส้นขอบให้เข้มขึ้นนิดนึงเพื่อให้เห็นชัดตอน Label ทับ
           borderSide: BorderSide(color: Colors.grey.shade400), 
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          // เพิ่มความหนาเส้นตอนกดเล็กน้อย
           borderSide: const BorderSide(color: Color(0xFF0062E0), width: 1.5),
         ),
       ),

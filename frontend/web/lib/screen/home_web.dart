@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 📦 1. เพิ่ม import นี้
 import 'package:flutter_application_1/screen/appomitment/appointment.dart';
 import 'package:flutter_application_1/screen/daily/daily_queue.dart';
 import 'package:flutter_application_1/screen/pateints/pateints_table.dart';
+import 'package:flutter_application_1/screen/login_web.dart'; // เพื่อให้รู้จัก LoginScreen ตอนกด Logout
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,13 +14,29 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  String _currentUserName = "กำลังโหลด..."; // 👤 ตัวแปรเก็บชื่อผู้ใช้
 
   // เพิ่มหน้า PatientsScreen เข้าไปใน List
   final List<Widget> _pages = [
     const DailyQueueScreen(), // หน้า 0
     const AppointmentScreen(), // หน้า 1
-    const PatientsScreen(), // หน้า 2 (ใส่ Widget จริงแทนที่บรรทัดนี้ได้เลย)
+    const PatientsScreen(), // หน้า 2
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile(); // 🚀 2. เรียกฟังก์ชันดึงชื่อตอนเริ่มหน้าจอ
+  }
+
+  // ฟังก์ชันดึงชื่อจากเครื่อง
+  Future<void> _loadUserProfile() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      // ดึงค่า 'user_name' ที่เราบันทึกไว้ในหน้า Login
+      _currentUserName = prefs.getString('user_name') ?? "ผู้เจ้าหน้าที่";
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,23 +63,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 50),
 
-                // เมนูที่ 1: ตารางนัดประจำวัน (ไอคอน List)
+                // เมนูที่ 1: ตารางนัดประจำวัน
                 _buildMenuItem(
                   0,
                   "ตารางนัดประจำวัน",
                   Icons.format_list_bulleted,
                 ),
 
-                // เมนูที่ 2: การนัดหมาย (ไอคอนปฏิทิน)
+                // เมนูที่ 2: การนัดหมาย
                 _buildMenuItem(1, "การนัดหมาย", Icons.calendar_today_outlined),
 
-                // --- เมนูที่ 3: ข้อมูลผู้ป่วย (เพิ่มใหม่ตามรูป) ---
+                // เมนูที่ 3: ข้อมูลผู้ป่วย
                 _buildMenuItem(2, "ข้อมูลผู้ป่วย", Icons.person),
 
-                // ---------------------------------------------
                 const Spacer(),
 
-                // ส่วน Profile ด้านล่าง (เหมือนเดิม)
+                // --- ส่วน Profile ด้านล่าง (แก้ไขตรงนี้) ---
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: const BoxDecoration(
@@ -72,23 +89,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       Row(
                         children: [
                           const CircleAvatar(
-                            child: const CircleAvatar(
-                              backgroundColor: Colors.grey,
-                              radius: 20,
-                              child: Icon(Icons.person, color: Colors.white),
-                            ),
                             radius: 20,
+                            backgroundColor: Colors.grey,
+                            child: Icon(Icons.person, color: Colors.white),
                           ),
                           const SizedBox(width: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
+                              // 👤 แสดงชื่อที่ Login เข้ามา
                               Text(
-                                "นายสี่ ห้า",
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                _currentUserName, 
+                                style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              Text(
-                                "จนท.ทะเบียน",
+                              // 🏷️ แสดงตำแหน่ง "เจ้าหน้าที่ทะเบียน"
+                              const Text(
+                                "เจ้าหน้าที่ทะเบียน",
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey,
@@ -100,8 +116,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 15),
                       OutlinedButton.icon(
-                        onPressed: () =>
-                            Navigator.pushReplacementNamed(context, '/'),
+                        onPressed: () async {
+                          // Logout: ล้างข้อมูลแล้วกลับไปหน้า Login
+                          SharedPreferences prefs = await SharedPreferences.getInstance();
+                          await prefs.clear();
+                          
+                          if (!mounted) return;
+                          Navigator.pushReplacement(
+                            context, 
+                            MaterialPageRoute(builder: (context) => const LoginScreen())
+                          );
+                        },
                         icon: const Icon(Icons.logout, size: 16),
                         label: const Text("ออกจากระบบ"),
                         style: OutlinedButton.styleFrom(
@@ -127,7 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Widget สร้างเมนู (ปรับให้เหมือนรูปต้นฉบับ: แคปซูลสีฟ้า/เทา)
+  // Widget สร้างเมนู (เหมือนเดิมเป๊ะ)
   Widget _buildMenuItem(int index, String title, IconData icon) {
     bool isSelected = _selectedIndex == index;
 
@@ -137,7 +162,6 @@ class _HomeScreenState extends State<HomeScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          // ถ้าเลือก: สีฟ้าอ่อน (เหมือนในรูป), ถ้าไม่เลือก: สีเทา
           color: isSelected ? const Color(0xFF90CAF9) : const Color(0xFFE0E0E0),
           borderRadius: BorderRadius.circular(30),
         ),
@@ -145,7 +169,6 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Icon(
               icon,
-              // ถ้าเลือก: สีน้ำเงินเข้ม, ถ้าไม่เลือก: สีเทาเข้ม
               color: isSelected ? const Color(0xFF1565C0) : Colors.grey[700],
               size: 22,
             ),
@@ -153,11 +176,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               title,
               style: TextStyle(
-                // ถ้าเลือก: สีดำ/เทาเข้ม, ถ้าไม่เลือก: สีเทาเข้ม
                 color: isSelected ? Colors.black87 : Colors.grey[700],
                 fontWeight: isSelected
                     ? FontWeight.bold
-                    : FontWeight.normal, // ตัวหนาเมื่อเลือก
+                    : FontWeight.normal,
                 fontSize: 14,
               ),
             ),

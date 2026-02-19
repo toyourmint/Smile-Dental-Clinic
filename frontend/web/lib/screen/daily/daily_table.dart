@@ -71,7 +71,7 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
                   itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                     const PopupMenuItem<String>(value: "ทั้งหมด", child: Text("ทั้งหมด")),
                     const PopupMenuDivider(),
-                    const PopupMenuItem<String>(value: "ยังไม่มา", child: Text("ยังไม่มา (Confirmed)")),
+                    const PopupMenuItem<String>(value: "ยังไม่มา", child: Text("ยังไม่มา (ฺBooking)")),
                     const PopupMenuItem<String>(value: "รอเรียกคิว", child: Text("รอเรียกคิว (Waiting)")),
                     const PopupMenuItem<String>(value: "กำลังตรวจ", child: Text("กำลังตรวจ (In Queue)")),
                     const PopupMenuItem<String>(value: "เสร็จสิ้น", child: Text("เสร็จสิ้น (Done)")),
