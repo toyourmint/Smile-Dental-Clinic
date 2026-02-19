@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final String? token = result['body']['token']; // เช็ค key ให้ตรงกับที่ backend ส่งมา (มักจะเป็น 'token')
         if (token != null) {
           SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.setString('my_token', token); // เซฟ Token เก็บไว้!
+          await prefs.setString('token', token); // เซฟ Token เก็บไว้!
         }
 
         // สำเร็จ → ไปหน้า Home

@@ -24,18 +24,17 @@ class AppointmentModel {
   // 1. Factory: แปลง JSON จาก Server -> เป็น AppointmentModel
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
     return AppointmentModel(
-      id: json['id'],
-      serviceName: json['serviceName'],
-      doctorName: json['doctorName'] ?? "ไม่ระบุแพทย์",
-      date: DateTime.parse(json['date']), // แปลง String เป็น DateTime
-      time: json['time'],
-      queueNumber: json['queueNumber'] is int 
-          ? json['queueNumber'] 
-          : int.parse(json['queueNumber'].toString()), // กันเหนียวกรณีส่งมาเป็น String
-          firstName: json['firstName'] ?? "",
-      lastName: json['lastName'] ?? "",
+      id: json['apt_id'].toString(),
+      serviceName: json['reason'] ?? "ตรวจทั่วไป",
+      doctorName: json['doctor_name'] ?? "ไม่ระบุแพทย์",
+      date: DateTime.parse(json['appointment_date']),
+      time: json['appointment_time'].substring(0,5), // 09:00
+      queueNumber: json['apt_id'] ?? 0,
+      firstName: json['first_name'] ?? "",
+      lastName: json['last_name'] ?? "",
     );
   }
+
 
   get userName => null;
 
