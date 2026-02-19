@@ -88,8 +88,23 @@ exports.nextQueueNo = async (req, res) => {
 exports.skipQueueNo = async (req, res) => {
     const { room } = req.query;
     try {
-        await pool.query(`UPDATE queues SET status = 'skipped' WHERE room = ? AND status = 'in_room' AND queue_date = CURDATE()`, [room]);
+        // 💡 1. เพิ่มคำสั่งนี้: เปลี่ยนสถานะนัดหมาย (appointments) เป็น 'cancelled'
+        // โดยหาคิวที่กำลังเป็น 'in_room' ของห้องนี้อยู่ แล้วจับคู่ผ่าน appointment_id
+        await pool.query(`
+            UPDATE appointments a
+            JOIN queues q ON a.id = q.appointment_id
+            SET a.status = 'cancelled'
+            WHERE q.room = ? AND q.status = 'in_room' AND q.queue_date = CURDATE()
+        `, [room]);
 
+        // 💡 2. เปลี่ยนสถานะคิว (queues) ปัจจุบันเป็น 'skipped' (ของเดิม)
+        await pool.query(`
+            UPDATE queues 
+            SET status = 'skipped' 
+            WHERE room = ? AND status = 'in_room' AND queue_date = CURDATE()
+        `, [room]);
+
+        // 3. ค้นหาคิวที่รออยู่ (waiting) เพื่อเรียกเข้าห้องแทน
         const [nextQueueRows] = await pool.query(`
             SELECT id, queue_number, user_id 
             FROM queues 
@@ -97,13 +112,21 @@ exports.skipQueueNo = async (req, res) => {
             ORDER BY queue_number ASC LIMIT 1
         `, [room]);
 
-        if (nextQueueRows.length === 0) return res.status(200).json({ message: "ข้ามคิวสำเร็จ แต่ไม่มีคิวรอแล้ว", called_queue: '-' });
+        if (nextQueueRows.length === 0) {
+            return res.status(200).json({ message: "ข้ามคิวสำเร็จ แต่ไม่มีคิวรอแล้ว", called_queue: '-' });
+        }
 
         const nextQueue = nextQueueRows[0];
+        
+        // 4. อัปเดตคิวคนที่รอให้เป็น กำลังตรวจ (in_room)
         await pool.query(`UPDATE queues SET status = 'in_room' WHERE id = ?`, [nextQueue.id]);
 
-        res.status(200).json({ message: "ข้ามคิวสำเร็จ และเรียกคิวถัดไปเรียบร้อย", called_queue: `${room}${nextQueue.queue_number}` });
+        res.status(200).json({ 
+            message: "ข้ามคิวสำเร็จ และเรียกคิวถัดไปเรียบร้อย", 
+            called_queue: `${room}${nextQueue.queue_number}` 
+        });
     } catch (error) {
+        console.error("Error skipping queue:", error);
         res.status(500).json({ error: "ระบบขัดข้องในการข้ามคิว" });
     }
 };
