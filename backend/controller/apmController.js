@@ -169,7 +169,7 @@ exports.getAllAppointments = async (req, res) => {
             JOIN users u ON a.user_id = u.id
             JOIN user_profiles p ON u.id = p.user_id
             LEFT JOIN doctors d ON a.doctor_id = d.id
-            ORDER BY a.appointment_date DESC, a.appointment_time ASC
+            ORDER BY a.appointment_date ASC, a.appointment_time ASC
         `;
         const [rows] = await pool.execute(sql);
         res.status(200).json({ success: true, appointments: rows });
