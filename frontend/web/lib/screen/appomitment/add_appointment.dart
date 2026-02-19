@@ -37,7 +37,14 @@ class _AddAppointmentDialogState extends State<AddAppointmentDialog> {
 
   // Lists
   final List<String> _prefixes = ['นาย', 'นาง', 'นางสาว', 'ด.ช.', 'ด.ญ.'];
-  final List<String> _treatments = ['ตรวจสุขภาพช่องปาก', 'ฟันเทียม', 'รักษารากฟัน/อุดฟัน', 'ฝังรากฟันเทียม', 'จัดฟัน', 'ถอนฟัน', 'ขูดหินปูน'];
+  final List<String> _treatments = [
+    'ตรวจสุขภาพช่องปาก', 
+    'ฟันเทียม', 
+    'รักษารากฟัน/อุดฟัน', 
+    'ฝังรากฟันเทียม', 
+    'ฟันแตก', 
+    'จัดฟัน'
+  ];
   List<String> _doctors = []; 
 
   @override
