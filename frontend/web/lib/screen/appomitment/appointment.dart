@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart'; // 🌟 ใช้สำหรับดึง Token
-import 'package:flutter_application_1/screen/appomitment/add_appointment.dart'; // แก้ไข Path ให้ตรงกับโปรเจกต์ของคุณถ้าจำเป็น
+import 'package:shared_preferences/shared_preferences.dart'; 
+import 'package:flutter_application_1/screen/appomitment/add_appointment.dart'; 
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({super.key});
@@ -31,7 +31,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     super.dispose();
   }
 
-  // 💡 ฟังก์ชันดึงตารางนัดหมายทั้งหมด (พร้อมแนบ Auth Token)
+  // 💡 ฟังก์ชันดึงตารางนัดหมายทั้งหมด
   Future<void> _fetchAppointments() async {
     setState(() => _isLoading = true);
     try {
@@ -42,15 +42,17 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         Uri.parse('http://localhost:3000/api/apm/all'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${myToken ?? ""}', // 🌟 แนบ Token ยืนยันตัวตน
+          'Authorization': 'Bearer ${myToken ?? ""}', 
         }
       );
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          _appointments = data['appointments'] ?? [];
-        });
+        if (mounted) {
+          setState(() {
+            _appointments = data['appointments'] ?? [];
+          });
+        }
       } else if (response.statusCode == 401 || response.statusCode == 403) {
          if (mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
@@ -65,7 +67,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
          }
       }
     } catch (e) {
-      print("Error fetching appointments: $e");
+      debugPrint("Error fetching appointments: $e");
       if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            const SnackBar(content: Text("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"), backgroundColor: Colors.red)
@@ -114,7 +116,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     }
   }
 
-  // 💡 ฟังก์ชันยกเลิกนัดหมาย (พร้อมแนบ Auth Token)
+  // 💡 ฟังก์ชันยกเลิกนัดหมาย
   void _confirmCancel(dynamic item) {
     if (item['status'] == 'cancelled') return;
 
@@ -147,18 +149,24 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     Uri.parse('http://localhost:3000/api/apm/cancel/${item['apt_id']}'),
                     headers: {
                       'Content-Type': 'application/json',
-                      'Authorization': 'Bearer ${myToken ?? ""}', // 🌟 แนบ Token ยกเลิก
+                      'Authorization': 'Bearer ${myToken ?? ""}', 
                     }
                   );
                   
                   if (response.statusCode == 200) {
                     _fetchAppointments(); // รีเฟรชตาราง
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ยกเลิกสำเร็จ"), backgroundColor: Colors.green));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ยกเลิกสำเร็จ"), backgroundColor: Colors.green));
+                    }
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ยกเลิกไม่สำเร็จ"), backgroundColor: Colors.red));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ยกเลิกไม่สำเร็จ"), backgroundColor: Colors.red));
+                    }
                   }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("เกิดข้อผิดพลาดในการเชื่อมต่อ"), backgroundColor: Colors.red));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("เกิดข้อผิดพลาดในการเชื่อมต่อ"), backgroundColor: Colors.red));
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -186,8 +194,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 💡 ระบบค้นหาและกรองวันที่แบบ Real-time
+    // 🗓️ กำหนดวันปัจจุบัน (ตัดเวลาออก เหลือแค่ วัน/เดือน/ปี เพื่อใช้เปรียบเทียบ)
+    DateTime now = DateTime.now();
+    DateTime today = DateTime(now.year, now.month, now.day);
+
+    // 💡 ระบบกรองข้อมูล (แสดงเฉพาะ ปัจจุบัน+อนาคต เป็นค่าเริ่มต้น)
     List<dynamic> filteredAppointments = _appointments.where((item) {
+      // 1. กรองตามคำค้นหา (Search)
       bool matchesSearch = true;
       if (_searchQuery.isNotEmpty) {
         String hn = (item['hn'] ?? "").toLowerCase();
@@ -197,11 +210,37 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         matchesSearch = hn.contains(searchLower) || name.contains(searchLower) || phone.contains(searchLower);
       }
       
+      // 2. กรองตามวันที่ (Date Filter)
       bool matchesDate = true;
+      
+      // แปลงวันที่จากข้อมูลให้เป็น DateTime
+      String dateStr = (item['appointment_date'] ?? "").split('T')[0];
+      DateTime? itemDate;
+      try {
+        itemDate = DateTime.parse(dateStr);
+        // ตัดเวลาทิ้งเพื่อให้เปรียบเทียบแค่ "วันที่"
+        itemDate = DateTime(itemDate.year, itemDate.month, itemDate.day);
+      } catch (e) {
+        itemDate = null;
+      }
+
       if (_selectedFilterDate != null) {
-        String filterYMD = "${_selectedFilterDate!.year}-${_selectedFilterDate!.month.toString().padLeft(2,'0')}-${_selectedFilterDate!.day.toString().padLeft(2,'0')}";
-        String itemDate = (item['appointment_date'] ?? "").split('T')[0];
-        matchesDate = (filterYMD == itemDate);
+        // ✅ กรณี A: ผู้ใช้กดเลือกวันที่ (Filter) -> ให้แสดงวันที่นั้นๆ (แม้จะเป็นอดีต)
+        if (itemDate != null) {
+           matchesDate = itemDate.isAtSameMomentAs(
+             DateTime(_selectedFilterDate!.year, _selectedFilterDate!.month, _selectedFilterDate!.day)
+           );
+        } else {
+           matchesDate = false;
+        }
+      } else {
+        // ✅ กรณี B: ไม่ได้เลือกวัน (ค่าเริ่มต้น) -> แสดงเฉพาะ "วันนี้" และ "อนาคต"
+        if (itemDate != null) {
+           // ถ้าวันที่นัดหมาย มาก่อน วันนี้ (เป็นอดีต) -> ไม่แสดง
+           if (itemDate.isBefore(today)) {
+             matchesDate = false; 
+           }
+        }
       }
       
       return matchesSearch && matchesDate;
@@ -328,7 +367,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                         Color statusColor = isCancelled ? Colors.red : const Color(0xFF42A5F5);
                         String statusText = isCancelled ? "ยกเลิก" : (item['status'] ?? "Confirmed");
                         
-                        // ดึงชื่อหมอออกมาจากช่อง notes
+                        // 💡 ดึงชื่อหมอตรงๆ จาก API
                         String doctor = item['doctor_name'] ?? "-"; 
 
                         return Container(
@@ -370,7 +409,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                                     ),
                                     const SizedBox(width: 10),
                                     if (!isCancelled) ...[
-                                      // ปุ่มแก้ไข (เตรียมไว้สำหรับอนาคต)
+                                      // ปุ่มแก้ไข
                                       InkWell(
                                         onTap: () {
                                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ระบบแก้ไขกำลังอยู่ในช่วงพัฒนา"), backgroundColor: Colors.orange));
