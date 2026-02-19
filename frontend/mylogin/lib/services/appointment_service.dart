@@ -163,17 +163,18 @@ class AppointmentService {
   /// ==============================
   /// 🔢 คิวปัจจุบัน
   /// ==============================
-  static Future<String> getCurrentQueueFromClinic() async {
+  static Future<Map<String, dynamic>> getCurrentQueueFromClinic() async {
     final response =
         await http.get(Uri.parse("$baseUrl/api/queue/room"));
 
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['current_A'] ?? '-';
+      return json.decode(response.body);
     } else {
-      return '-';
+      return {};
     }
   }
+
+
 
   /// ==============================
   /// 🔁 เลื่อนนัด
