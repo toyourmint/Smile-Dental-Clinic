@@ -7,8 +7,13 @@ import '../services/appointment_service.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
   final String serviceName;
+  final String? appointmentId;   // ⭐ ถ้ามี = เลื่อนนัด
 
-  const DateTimeSelectionScreen({super.key, required this.serviceName});
+  const DateTimeSelectionScreen({
+    super.key,
+    required this.serviceName,
+    this.appointmentId,
+  });
 
   @override
   State<DateTimeSelectionScreen> createState() =>
@@ -27,6 +32,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   bool _isBooking = false;
   bool _isLoadingSlots = true;
 
+  bool get isReschedule => widget.appointmentId != null;
+
   @override
   void initState() {
     super.initState();
@@ -34,7 +41,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     _fetchTimeSlots(_selectedDay!);
   }
 
-  /// 🔹 โหลดเวลาว่างจาก server
+  /// โหลดเวลาว่าง
   Future<void> _fetchTimeSlots(DateTime date) async {
     setState(() {
       _isLoadingSlots = true;
@@ -49,8 +56,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       if (!mounted) return;
 
       setState(() {
-        _timeSlots =
-            slots.map((e) => e.time.substring(0, 5)).toList();
+        _timeSlots = slots.map((e) => e.time.substring(0, 5)).toList();
 
         _disabledSlots = slots
             .where((e) => e.isFull)
@@ -60,24 +66,39 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
         _isLoadingSlots = false;
       });
     } catch (e) {
-      print("โหลดช่วงเวลาล้มเหลว: $e");
+      debugPrint("โหลดช่วงเวลาล้มเหลว: $e");
       if (!mounted) return;
       setState(() => _isLoadingSlots = false);
     }
   }
 
-  /// 🔹 กดจองคิว
+  /// ⭐ จอง / เลื่อนนัด
   Future<void> _handleBooking() async {
     if (_selectedTime == null || _selectedDay == null) return;
 
     setState(() => _isBooking = true);
 
+    final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+    final time = "$_selectedTime:00";
+
+    bool success = false;
+
     try {
-      final success = await AppointmentService.bookAppointment(
-        date: DateFormat('yyyy-MM-dd').format(_selectedDay!),
-        time: "$_selectedTime:00",
-        reason: widget.serviceName,
-      );
+      if (isReschedule) {
+        // ⭐ เลื่อนนัด
+        success = await AppointmentService.rescheduleAppointment(
+          id: widget.appointmentId!,
+          date: date,
+          time: time,
+        );
+      } else {
+        // ⭐ จองใหม่
+        success = await AppointmentService.bookAppointment(
+          date: date,
+          time: time,
+          reason: widget.serviceName,
+        );
+      }
 
       if (!mounted) return;
       setState(() => _isBooking = false);
@@ -85,7 +106,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       if (success) {
         _showSuccessDialog();
       } else {
-        _showError("ไม่สามารถจองคิวได้");
+        _showError("ไม่สามารถบันทึกข้อมูลได้");
       }
     } catch (e) {
       if (!mounted) return;
@@ -103,10 +124,16 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text("สำเร็จ",
-            style: GoogleFonts.kanit(fontWeight: FontWeight.bold)),
-        content: Text("จองคิวเรียบร้อยแล้ว",
-            style: GoogleFonts.kanit()),
+        title: Text(
+          isReschedule ? "เลื่อนนัดสำเร็จ" : "จองคิวสำเร็จ",
+          style: GoogleFonts.kanit(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          isReschedule
+              ? "เปลี่ยนเวลานัดเรียบร้อยแล้ว"
+              : "จองคิวเรียบร้อยแล้ว",
+          style: GoogleFonts.kanit(),
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -120,7 +147,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     );
   }
 
-  /// 🔹 เปิด modal เลือกเวลา
+  /// modal เลือกเวลา
   void _showTimePickerModal() async {
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -150,16 +177,18 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
-        title: Text(widget.serviceName,
-            style: GoogleFonts.kanit(
-                color: Colors.black,
-                fontWeight: FontWeight.bold)),
+        title: Text(
+          isReschedule
+              ? "เลื่อนนัด • ${widget.serviceName}"
+              : widget.serviceName,
+          style: GoogleFonts.kanit(
+              color: Colors.black, fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            /// 📅 Calendar
             TableCalendar(
               firstDay: DateTime.now(),
               lastDay: DateTime.now().add(const Duration(days: 90)),
@@ -185,8 +214,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
               ),
               calendarStyle: CalendarStyle(
                 selectedDecoration: const BoxDecoration(
-                    color: Colors.black,
-                    shape: BoxShape.circle),
+                    color: Colors.black, shape: BoxShape.circle),
                 todayDecoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.3),
                   shape: BoxShape.circle,
@@ -197,55 +225,41 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
 
             const SizedBox(height: 20),
 
-            /// ตารางเวลา
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("ตารางเวลา",
-                      style: GoogleFonts.kanit(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 15),
-
-                  GestureDetector(
-                    onTap: _isLoadingSlots ? null : _showTimePickerModal,
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEAF6FF),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "$dateText   ${_selectedTime ?? 'เลือกเวลา'}",
-                            style: GoogleFonts.kanit(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500),
-                          ),
-                          _isLoadingSlots
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2))
-                              : Icon(Icons.access_time,
-                                  color: Colors.blue.shade700),
-                        ],
-                      ),
-                    ),
+              child: GestureDetector(
+                onTap: _isLoadingSlots ? null : _showTimePickerModal,
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF6FF),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ],
+                  child: Row(
+                    mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "$dateText   ${_selectedTime ?? 'เลือกเวลา'}",
+                        style: GoogleFonts.kanit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500),
+                      ),
+                      _isLoadingSlots
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : Icon(Icons.access_time,
+                              color: Colors.blue.shade700),
+                    ],
+                  ),
+                ),
               ),
             ),
 
             const SizedBox(height: 30),
 
-            /// ปุ่มยืนยัน
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
@@ -263,11 +277,15 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                   ),
                   child: _isBooking
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : Text("ยืนยันการจอง",
+                      : Text(
+                          isReschedule
+                              ? "ยืนยันการเลื่อนนัด"
+                              : "ยืนยันการจอง",
                           style: GoogleFonts.kanit(
                               fontSize: 18,
                               color: Colors.white,
-                              fontWeight: FontWeight.bold)),
+                              fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
             ),

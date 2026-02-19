@@ -162,22 +162,36 @@ exports.getAvailableSlots = async (req, res) => {
 exports.getAllAppointments = async (req, res) => {
     try {
         const sql = `
-            SELECT a.id as apt_id, a.appointment_date, a.appointment_time, a.status, a.reason, a.notes,
-                   p.hn, p.title, p.first_name, p.last_name, u.phone, 
-                   d.doctor_name 
+            SELECT 
+                a.id AS apt_id,
+                a.appointment_date,
+                a.appointment_time,
+                a.reason,
+                a.notes,
+                p.first_name,
+                p.last_name,
+                d.doctor_name
             FROM appointments a
             JOIN users u ON a.user_id = u.id
             JOIN user_profiles p ON u.id = p.user_id
             LEFT JOIN doctors d ON a.doctor_id = d.id
+            WHERE a.status != 'cancelled'   -- ⭐ สำคัญมาก
             ORDER BY a.appointment_date ASC, a.appointment_time ASC
         `;
+
         const [rows] = await pool.execute(sql);
-        res.status(200).json({ success: true, appointments: rows });
+
+        res.status(200).json({
+            success: true,
+            appointments: rows
+        });
+
     } catch (error) {
-        console.error('Error fetching all appointments:', error);
-        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูลตารางนัดหมาย' });
+        console.error('Error fetching appointments:', error);
+        res.status(500).json({ success: false });
     }
 };
+
 
 exports.cancelAppointment = async (req, res) => {
     try {
@@ -188,4 +202,53 @@ exports.cancelAppointment = async (req, res) => {
         console.error('Error cancelling appointment:', error);
         res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการยกเลิกนัดหมาย' });
     }
+};
+exports.rescheduleAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { appointment_date, appointment_time } = req.body;
+
+    if (!appointment_date || !appointment_time) {
+      return res.status(400).json({
+        success: false,
+        message: 'กรุณาระบุวันและเวลาใหม่'
+      });
+    }
+
+    // เช็คว่าช่วงเวลานั้นเต็มหรือยัง
+    const checkSql = `
+      SELECT COUNT(id) as total
+      FROM appointments
+      WHERE appointment_date = ?
+        AND appointment_time = ?
+        AND status != 'cancelled'
+        AND id != ?
+    `;
+
+    const [rows] = await pool.execute(checkSql, [
+      appointment_date,
+      appointment_time,
+      id
+    ]);
+
+    if (rows[0].total >= 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'ช่วงเวลานี้เต็มแล้ว'
+      });
+    }
+
+    await pool.execute(
+      `UPDATE appointments
+       SET appointment_date = ?, appointment_time = ?
+       WHERE id = ?`,
+      [appointment_date, appointment_time, id]
+    );
+
+    res.json({ success: true, message: 'เลื่อนนัดสำเร็จ' });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false });
+  }
 };

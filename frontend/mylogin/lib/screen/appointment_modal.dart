@@ -7,18 +7,18 @@ class AppointmentModel {
   final DateTime date;
   final String time;
   final int queueNumber;
-  final String firstName; 
+  final String firstName;
   final String lastName;
 
-  AppointmentModel({
+   AppointmentModel({
     this.id,
     required this.serviceName,
-    this.doctorName = "ทพ. สมมติ เชี่ยวชาญ", // ค่า Default
     required this.date,
     required this.time,
     required this.queueNumber,
     required this.firstName,
     required this.lastName,
+    this.doctorName = "ไม่ระบุแพทย์",
   });
 
   // 1. Factory: แปลง JSON จาก Server -> เป็น AppointmentModel
@@ -28,12 +28,13 @@ class AppointmentModel {
       serviceName: json['reason'] ?? "ตรวจทั่วไป",
       doctorName: json['doctor_name'] ?? "ไม่ระบุแพทย์",
       date: DateTime.parse(json['appointment_date']),
-      time: json['appointment_time'].substring(0,5), // 09:00
+      time: json['appointment_time'].substring(0, 5),
       queueNumber: json['apt_id'] ?? 0,
       firstName: json['first_name'] ?? "",
       lastName: json['last_name'] ?? "",
     );
   }
+
 
 
   get userName => null;
@@ -51,8 +52,7 @@ class AppointmentModel {
   }
 } // <--- ปิด Class AppointmentModel ตรงนี้
 
-// *** ตัวแปร Global สำหรับเก็บข้อมูลชั่วคราว (Mock Database) ***
-List<AppointmentModel> myAppointments = [];
+
 
 // [เพิ่ม] จำลองข้อมูล User ที่ Login เข้ามา
 class UserProfile {
@@ -78,9 +78,3 @@ class UserProfile {
   }
 } // <--- ปิด Class UserProfile ตรงนี้
 
-// สร้างตัวแปร Global ไว้ทดสอบ
-UserProfile currentUser = UserProfile(
-  name: "คุณ Anna",
-  email: "Anna@gmail.com",
-  role: "patient",
-);
