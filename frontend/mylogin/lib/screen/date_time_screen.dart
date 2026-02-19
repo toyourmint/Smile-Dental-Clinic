@@ -7,7 +7,7 @@ import '../services/appointment_service.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
   final String serviceName;
-  final String? appointmentId;   // ⭐ ถ้ามี = เลื่อนนัด
+  final String? appointmentId; // ถ้ามี = เลื่อนนัด
 
   const DateTimeSelectionScreen({
     super.key,
@@ -21,7 +21,6 @@ class DateTimeSelectionScreen extends StatefulWidget {
 }
 
 class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
-  CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
@@ -72,7 +71,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     }
   }
 
-  /// ⭐ จอง / เลื่อนนัด
+  /// จอง / เลื่อนนัด
   Future<void> _handleBooking() async {
     if (_selectedTime == null || _selectedDay == null) return;
 
@@ -85,14 +84,12 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
 
     try {
       if (isReschedule) {
-        // ⭐ เลื่อนนัด
         success = await AppointmentService.rescheduleAppointment(
           id: widget.appointmentId!,
           date: date,
           time: time,
         );
       } else {
-        // ⭐ จองใหม่
         success = await AppointmentService.bookAppointment(
           date: date,
           time: time,
@@ -149,6 +146,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
 
   /// modal เลือกเวลา
   void _showTimePickerModal() async {
+    if (_isLoadingSlots) return;
+
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -169,7 +168,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   Widget build(BuildContext context) {
     final dateText = _selectedDay == null
         ? "กรุณาเลือกวันที่"
-        : DateFormat('dd.MM.yyyy').format(_selectedDay!);
+        : DateFormat('dd MMM yyyy').format(_selectedDay!);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -189,46 +188,29 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            /// 📅 Calendar
             TableCalendar(
               firstDay: DateTime.now(),
               lastDay: DateTime.now().add(const Duration(days: 90)),
               focusedDay: _focusedDay,
-              calendarFormat: _calendarFormat,
               selectedDayPredicate: (day) =>
                   isSameDay(_selectedDay, day),
               onDaySelected: (selectedDay, focusedDay) {
-                if (!isSameDay(_selectedDay, selectedDay)) {
-                  setState(() {
-                    _selectedDay = selectedDay;
-                    _focusedDay = focusedDay;
-                  });
-                  _fetchTimeSlots(selectedDay);
-                }
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                });
+                _fetchTimeSlots(selectedDay);
               },
-              headerStyle: HeaderStyle(
-                titleCentered: true,
-                formatButtonVisible: false,
-                titleTextStyle: GoogleFonts.kanit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
-              ),
-              calendarStyle: CalendarStyle(
-                selectedDecoration: const BoxDecoration(
-                    color: Colors.black, shape: BoxShape.circle),
-                todayDecoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
-                  shape: BoxShape.circle,
-                ),
-                defaultTextStyle: GoogleFonts.kanit(),
-              ),
             ),
 
             const SizedBox(height: 20),
 
+            /// ⏰ เลือกเวลา
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: GestureDetector(
-                onTap: _isLoadingSlots ? null : _showTimePickerModal,
+                onTap: _showTimePickerModal,
                 child: Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
@@ -260,6 +242,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
 
             const SizedBox(height: 30),
 
+            /// 🔵 ปุ่มยืนยัน
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
@@ -289,6 +272,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 30),
           ],
         ),

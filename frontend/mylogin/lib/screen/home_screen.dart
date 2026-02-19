@@ -37,6 +37,8 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final data = await AppointmentService.fetchAppointments();
 
+
+      print(data); // 👈 เพิ่มบรรทัดนี้
       if (mounted) {
         setState(() {
           appointments = data;

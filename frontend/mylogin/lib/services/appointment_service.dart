@@ -6,48 +6,62 @@ import '../screen/appointment_modal.dart';
 class AppointmentService {
   static const String baseUrl = "http://10.0.2.2:3000";
 
+  /// 🔐 helper ดึง token + header
+  static Future<Map<String, String>> _authHeader() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('my_token');
+
+    if (token == null || token.isEmpty) {
+      throw Exception("Session expired");
+    }
+
+    return {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $token",
+    };
+  }
+
   /// ==============================
   /// 📅 ดึงรายการนัดหมาย
   /// ==============================
   static Future<List<AppointmentModel>> fetchAppointments() async {
-    final response =
-        await http.get(Uri.parse("$baseUrl/api/apm/all"));
+    final headers = await _authHeader();
+
+    final response = await http.get(
+      Uri.parse("$baseUrl/api/apm/my"), // ⭐ เปลี่ยนตรงนี้
+      headers: headers,
+    );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       final List list = data['appointments'] ?? [];
-
       return list.map((e) => AppointmentModel.fromJson(e)).toList();
+    } else if (response.statusCode == 401) {
+      throw Exception("Session expired");
     } else {
       throw Exception("โหลดข้อมูลนัดหมายไม่สำเร็จ");
     }
   }
 
   /// ==============================
-  /// 🦷 จองคิว (ใช้ JWT Token)
+  /// 🦷 จองคิว
   /// ==============================
   static Future<bool> bookAppointment({
     required String date,
     required String time,
+    
     String reason = "",
     String notes = "",
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('my_token');
-
-    if (token == null) {
-      throw Exception("Token not found");
-    }
+    final headers = await _authHeader();
 
     final response = await http.post(
       Uri.parse("$baseUrl/api/apm/apmUser"),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token",
-      },
+      headers: headers,
       body: jsonEncode({
         "appointment_date": date,
         "appointment_time": time,
+    
         "reason": reason,
         "notes": notes,
       }),
@@ -61,8 +75,11 @@ class AppointmentService {
   /// ❌ ยกเลิกนัดหมาย
   /// ==============================
   static Future<bool> cancelAppointment(String id) async {
+    final headers = await _authHeader();
+
     final response = await http.put(
       Uri.parse("$baseUrl/api/apm/cancel/$id"),
+      headers: headers,
     );
 
     return response.statusCode == 200;
@@ -75,13 +92,15 @@ class AppointmentService {
     final formattedDate =
         "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 
+    final headers = await _authHeader();
+
     final response = await http.get(
       Uri.parse("$baseUrl/api/apm/slots?date=$formattedDate"),
+      headers: headers,
     );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-
       return (data['slots'] as List)
           .map((e) => Slot.fromJson(e))
           .toList();
@@ -104,14 +123,20 @@ class AppointmentService {
       return '-';
     }
   }
+
+  /// ==============================
+  /// 🔁 เลื่อนนัด
+  /// ==============================
   static Future<bool> rescheduleAppointment({
     required String id,
     required String date,
     required String time,
   }) async {
+    final headers = await _authHeader();
+
     final response = await http.put(
       Uri.parse("$baseUrl/api/apm/reschedule/$id"),
-      headers: {"Content-Type": "application/json"},
+      headers: headers,
       body: jsonEncode({
         "appointment_date": date,
         "appointment_time": time,
@@ -120,7 +145,6 @@ class AppointmentService {
 
     return response.statusCode == 200;
   }
-
 }
 
 /// ==============================

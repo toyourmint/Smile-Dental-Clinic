@@ -12,5 +12,6 @@ router.get('/all', apmController.getAllAppointments);
 router.put('/cancel/:id', apmController.cancelAppointment);
 router.put('/reschedule/:id', apmController.rescheduleAppointment);
 router.put('/edit/:id', apmController.editAppointment);
+router.get('/my', verify, apmController.getMyAppointments);
 
 module.exports = router;
