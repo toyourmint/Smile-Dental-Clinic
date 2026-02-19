@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../screen/appointment_modal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../screen/appointment_modal.dart';
 
 class AppointmentService {
   static const String baseUrl = "http://10.0.2.2:3000";
@@ -11,9 +10,8 @@ class AppointmentService {
   /// 📅 ดึงรายการนัดหมาย
   /// ==============================
   static Future<List<AppointmentModel>> fetchAppointments() async {
-    final response = await http.get(
-      Uri.parse("$baseUrl/api/apm/all"),
-    );
+    final response =
+        await http.get(Uri.parse("$baseUrl/api/apm/all"));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -26,7 +24,7 @@ class AppointmentService {
   }
 
   /// ==============================
-  /// 🦷 จองคิว
+  /// 🦷 จองคิว (ใช้ JWT Token)
   /// ==============================
   static Future<bool> bookAppointment({
     required String date,
@@ -34,9 +32,8 @@ class AppointmentService {
     String reason = "",
     String notes = "",
   }) async {
-
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = prefs.getString('my_token');
 
     if (token == null) {
       throw Exception("Token not found");
@@ -60,10 +57,19 @@ class AppointmentService {
     return response.statusCode == 201 && data['success'] == true;
   }
 
+  /// ==============================
+  /// ❌ ยกเลิกนัดหมาย
+  /// ==============================
+  static Future<bool> cancelAppointment(String id) async {
+    final response = await http.put(
+      Uri.parse("$baseUrl/api/apm/cancel/$id"),
+    );
 
+    return response.statusCode == 200;
+  }
 
   /// ==============================
-  /// ⏰ ดึงช่วงเวลาที่ว่าง
+  /// ⏰ ดึงเวลาว่าง
   /// ==============================
   static Future<List<Slot>> getAvailableSlots(DateTime date) async {
     final formattedDate =
@@ -88,9 +94,8 @@ class AppointmentService {
   /// 🔢 คิวปัจจุบัน
   /// ==============================
   static Future<String> getCurrentQueueFromClinic() async {
-    final response = await http.get(
-      Uri.parse("$baseUrl/api/queue/room"),
-    );
+    final response =
+        await http.get(Uri.parse("$baseUrl/api/queue/room"));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -99,8 +104,28 @@ class AppointmentService {
       return '-';
     }
   }
+  static Future<bool> rescheduleAppointment({
+    required String id,
+    required String date,
+    required String time,
+  }) async {
+    final response = await http.put(
+      Uri.parse("$baseUrl/api/apm/reschedule/$id"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "appointment_date": date,
+        "appointment_time": time,
+      }),
+    );
+
+    return response.statusCode == 200;
+  }
+
 }
 
+/// ==============================
+/// Slot Model
+/// ==============================
 class Slot {
   final String time;
   final bool isFull;

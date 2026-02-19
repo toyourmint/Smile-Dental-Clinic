@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:mylogin/services/appointment_service.dart';
 import 'package:mylogin/screen/appointment_modal.dart';
 import 'package:mylogin/screen/date_time_screen.dart';
 import 'appointment_detail_screen.dart';
@@ -13,95 +14,111 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  // เก็บสถานะว่าเลือก "จองคิว" หรือ "คิว"
   bool isBookingSelected = true;
-  // ตัวแปรเก็บชื่อบริการที่ถูกเลือก
-  String selectedService = "ตรวจสุขภาพ\nช่องปาก";
+  bool isProcessing = false;
 
-  // ฟังก์ชันสำหรับรีเฟรชหน้าจอ (ใช้ตอนกดกลับมาจากหน้าจองสำเร็จ)
-  void _refresh() {
-    setState(() {});
+  List<AppointmentModel> appointments = [];
+  bool isLoadingAppointments = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppointments();
+  }
+
+  /// โหลดนัดหมายจากฐานข้อมูล
+  Future<void> _loadAppointments() async {
+    try {
+      final data = await AppointmentService.fetchAppointments();
+
+      if (!mounted) return;
+
+      setState(() {
+        appointments = data;
+        isLoadingAppointments = false;
+      });
+    } catch (e) {
+      debugPrint("โหลดนัดหมายผิดพลาด: $e");
+      setState(() => isLoadingAppointments = false);
+    }
+  }
+
+  void _refreshAfterBooking() {
+    _loadAppointments();
+    setState(() => isBookingSelected = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFF5F9FF,
-      ), // ปรับสีพื้นหลังให้อ่อนลงเล็กน้อย
+      backgroundColor: const Color(0xFFF5F9FF),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black54),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading:
+            const BackButton(color: Colors.black54),
         title: Text(
-          isBookingSelected ? "บริการ" : "การนัดหมาย", // เปลี่ยนหัวข้อตามแท็บ
+          isBookingSelected ? "บริการ" : "การนัดหมาย",
           style: GoogleFonts.kanit(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-          ),
+              color: Colors.black87,
+              fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
       body: Column(
         children: [
           const SizedBox(height: 20),
-          _buildToggleButtons(),
+          _toggleButtons(),
           const SizedBox(height: 20),
-
-          // ใช้ Expanded เพื่อสลับเนื้อหาระหว่าง "ตารางบริการ" กับ "รายการนัดหมาย"
           Expanded(
             child: isBookingSelected
-                ? _buildServiceGrid() // ถ้าเลือก "จองคิว" -> โชว์ตารางบริการ
-                : _buildAppointmentList(), // ถ้าเลือก "คิว" -> โชว์รายการนัด
+                ? _serviceGrid()
+                : _appointmentList(),
           ),
         ],
       ),
     );
   }
 
-  // ==========================================
-  // ส่วนที่ 1: ปุ่ม Toggle (จองคิว / คิว)
-  // ==========================================
-  Widget _buildToggleButtons() {
-    return Center(
-      child: Container(
-        width: 250,
-        height: 50,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10),
-          ],
-        ),
-        child: Row(
-          children: [
-            _buildToggleButton("จองคิว", true),
-            _buildToggleButton("คิว", false),
-          ],
-        ),
+  /// ================= TOGGLE =================
+  Widget _toggleButtons() {
+    return Container(
+      width: 250,
+      height: 50,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 10),
+        ],
+      ),
+      child: Row(
+        children: [
+          _toggleButton("จองคิว", true),
+          _toggleButton("คิว", false),
+        ],
       ),
     );
   }
 
-  Widget _buildToggleButton(String text, bool isBookingBtn) {
-    bool isActive = isBookingSelected == isBookingBtn;
+  Widget _toggleButton(String text, bool value) {
+    bool active = isBookingSelected == value;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => isBookingSelected = isBookingBtn),
+        onTap: () => setState(() => isBookingSelected = value),
         child: Container(
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFFE3F2FD) : Colors.transparent,
+            color:
+                active ? const Color(0xFFE3F2FD) : Colors.transparent,
             borderRadius: BorderRadius.circular(25),
           ),
           child: Text(
             text,
             style: GoogleFonts.kanit(
-              color: isActive ? Colors.blue : Colors.grey,
+              color: active ? Colors.blue : Colors.grey,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -110,378 +127,277 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // ==========================================
-  // ส่วนที่ 2: หน้าเลือกบริการ (Service Grid)
-  // ==========================================
-  Widget _buildServiceGrid() {
-    return Column(
+  /// ================= SERVICE GRID =================
+  Widget _serviceGrid() {
+    return GridView.count(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      crossAxisCount: 3,
+      crossAxisSpacing: 15,
+      mainAxisSpacing: 15,
       children: [
-        Expanded(
-          child: GridView.count(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            crossAxisCount: 3,
-            crossAxisSpacing: 15,
-            mainAxisSpacing: 15,
-            children: [
-              _buildServiceCard("ตรวจสุขภาพ\nช่องปาก", Icons.medical_services),
-              _buildServiceCard("ฟันเทียม", Icons.health_and_safety),
-              _buildServiceCard("รักษารากฟัน/\nอุดฟัน", Icons.healing),
-              _buildServiceCard("ฝังราก\nฟันเทียม", Icons.biotech),
-              _buildServiceCard("ฟันแตก", Icons.broken_image),
-              _buildServiceCard("จัดฟัน", Icons.grid_view_rounded),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
+        _serviceCard("ตรวจสุขภาพ\nช่องปาก", Icons.medical_services),
+        _serviceCard("ฟันเทียม", Icons.health_and_safety),
+        _serviceCard("รักษารากฟัน/\nอุดฟัน", Icons.healing),
+        _serviceCard("ฝังราก\nฟันเทียม", Icons.biotech),
+        _serviceCard("ฟันแตก", Icons.broken_image),
+        _serviceCard("จัดฟัน", Icons.grid_view_rounded),
       ],
     );
   }
 
-  Widget _buildServiceCard(String title, IconData icon) {
-    bool isSelected = selectedService == title;
+  Widget _serviceCard(String title, IconData icon) {
     return GestureDetector(
-      onTap: () {
-        // 1. อัปเดตตัวแปรว่าเลือกบริการนี้
-        setState(() {
-          selectedService = title;
-        });
-
-        // 2. สั่งเปลี่ยนหน้าทันที (Logic เดิมที่เคยอยู่ในปุ่ม)
-        Navigator.push(
+      onTap: () async {
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                DateTimeSelectionScreen(serviceName: title), // ส่งชื่อบริการที่กดไป
+            builder: (_) =>
+                DateTimeSelectionScreen(serviceName: title),
           ),
-        ).then((_) {
-          // 3. เมื่อกลับมาจากหน้าจอง ให้รีเฟรชหน้าจอ
-          _refresh();
-          if (myAppointments.isNotEmpty) {
-            setState(() {
-              // สลับไปแท็บคิว เพื่อดูรายการนัด
-              isBookingSelected = false; 
-            });
-          }
-        });
+        );
+
+        if (result == true) {
+          _refreshAfterBooking();
+        }
       },
       child: Container(
         decoration: BoxDecoration(
-          // เปลี่ยนสีถ้าถูกเลือก (Optional)
-          color: isSelected ? Colors.blue.shade50 : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey.shade200,
-            width: isSelected ? 2 : 1,
-          ),
+          border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 10),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 35,
-              color: isSelected ? Colors.blue : Colors.grey.shade600,
-            ),
+            Icon(icon,
+                size: 35, color: Colors.grey.shade600),
             const SizedBox(height: 10),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.kanit(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.blue : Colors.grey.shade700,
-              ),
-            ),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.kanit(fontSize: 14)),
           ],
         ),
       ),
     );
   }
-  
 
-  // ==========================================
-  // ส่วนที่ 3: หน้ารายการนัดหมาย (Appointment List)
-  // ==========================================
-  Widget _buildAppointmentList() {
-    // ดึงข้อมูลจากตัวแปร Global ใน appointment_model.dart
-    if (myAppointments.isEmpty) {
+  /// ================= APPOINTMENT LIST =================
+  Widget _appointmentList() {
+    if (isLoadingAppointments) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (appointments.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_busy, size: 80, color: Colors.grey.shade300),
-            const SizedBox(height: 10),
-            Text(
-              "ยังไม่มีการนัดหมาย",
-              style: GoogleFonts.kanit(color: Colors.grey, fontSize: 16),
-            ),
-          ],
-        ),
+        child: Text("ยังไม่มีการนัดหมาย",
+            style: GoogleFonts.kanit(fontSize: 16)),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: myAppointments.length,
-      itemBuilder: (context, index) {
-        final appointment = myAppointments[index]; // ดึงข้อมูลแต่ละรายการ
-        return Container(
-          margin: const EdgeInsets.only(bottom: 20),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // ส่วนหัว: รูปหมอ + ชื่อ
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.blue.shade50,
-                    child: const Icon(
-                      Icons.person,
-                      size: 35,
-                      color: Colors.blue,
-                    ), // ใส่รูปจริงตรงนี้ได้
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          appointment.doctorName,
-                          style: GoogleFonts.kanit(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                        Text(
-                          "ทันตแพทย์เฉพาะทาง (${appointment.serviceName.replaceAll('\n', ' ')})",
-                          style: GoogleFonts.kanit(
-                            color: Colors.grey,
-                            fontSize: 14,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
+    return RefreshIndicator(
+      onRefresh: _loadAppointments,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: appointments.length,
+        itemBuilder: (context, index) {
+          final apt = appointments[index];
 
-              // ส่วนข้อมูล: วันที่ และ เวลา
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: const BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Color(0xFFF0F0F0)),
-                    bottom: BorderSide(color: Color(0xFFF0F0F0)),
-                  ),
+          return Container(
+            margin: const EdgeInsets.only(bottom: 20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.grey.withOpacity(0.05),
+                    blurRadius: 20),
+              ],
+            ),
+            child: Column(
+              children: [
+
+                /// 👨‍⚕️ หมอ
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: Colors.blue.shade50,
+                      child: const Icon(Icons.person, color: Colors.blue),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(apt.doctorName,
+                              style: GoogleFonts.kanit(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold)),
+                          Text(
+                            "(${apt.serviceName.replaceAll('\n', ' ')})",
+                            style: GoogleFonts.kanit(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                child: Row(
+
+                const SizedBox(height: 18),
+
+                /// 📅 วันที่ & เวลา
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
-                        const Icon(
-                          Icons.calendar_today_outlined,
-                          size: 18,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(width: 8),
+                        const Icon(Icons.calendar_today, size: 18),
+                        const SizedBox(width: 6),
                         Text(
-                          DateFormat('d MMM yyyy').format(appointment.date),
-                          style: GoogleFonts.kanit(color: Colors.grey.shade700),
+                          DateFormat('d MMM yyyy').format(apt.date),
+                          style: GoogleFonts.kanit(),
                         ),
                       ],
                     ),
                     Row(
                       children: [
-                        const Icon(
-                          Icons.access_time,
-                          size: 18,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          "${appointment.time} น.",
-                          style: GoogleFonts.kanit(color: Colors.grey.shade700),
-                        ),
+                        const Icon(Icons.access_time, size: 18),
+                        const SizedBox(width: 6),
+                        Text("${apt.time} น.",
+                            style: GoogleFonts.kanit()),
                       ],
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
 
-              // ปุ่ม: รายละเอียด / เลื่อนนัด
-              Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 45,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AppointmentDetailScreen(
-                              appointment: appointment,
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEAF6FF),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: Text(
-                        "รายละเอียด",
-                        style: GoogleFonts.kanit(color: Colors.blue),
+                const SizedBox(height: 18),
+
+                /// 🔵 รายละเอียด
+                _blueButton("รายละเอียด", () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          AppointmentDetailScreen(appointment: apt),
+                    ),
+                  );
+                }),
+
+                const SizedBox(height: 10),
+
+                /// 🟠 เลื่อนนัด
+                _grayButton("เลื่อนนัดหมาย", () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DateTimeSelectionScreen(
+                        serviceName: apt.serviceName,
+                        appointmentId: apt.id,   // ⭐ ส่ง id นัดเดิมไป
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 45,
-                    child: TextButton(
-                      onPressed: () async {
-                        // เปิดหน้าจองเวลาใหม่ (ใช้หน้าเดิมที่มี)
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DateTimeSelectionScreen(
-                              serviceName:
-                                  appointment.serviceName, // จองบริการเดิม
-                            ),
-                          ),
-                        );
+                  );
 
-                        // ถ้ากลับมาพร้อมค่า true แปลว่าจองใหม่สำเร็จแล้ว
-                        if (result == true) {
-                          setState(() {
-                            // ลบนัดหมาย "อันเก่า" ออกจาก List (เพราะเลื่อนไปอันใหม่แล้ว)
-                            myAppointments.removeAt(index);
-                          });
+                  if (result == true) {
+                    _loadAppointments();  // รีโหลดข้อมูล
+                  }
+                }),
 
-                          // แจ้งเตือนผู้ใช้นิดนึง
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'เลื่อนนัดหมายเรียบร้อยแล้ว',
-                                  style: GoogleFonts.kanit(),
-                                ),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      style: TextButton.styleFrom(
-                        backgroundColor: const Color(0xFFFAFAFA),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: Text(
-                        "เลื่อนนัดหมาย",
-                        style: GoogleFonts.kanit(color: Colors.orange),
-                      ),
+
+                const SizedBox(height: 10),
+
+                /// 🔴 ยกเลิกนัด
+                _redButton("ยกเลิกนัดหมาย", () async {
+                  if (apt.id == null || isProcessing) return;
+
+                  final confirm = await showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text("ยืนยันการยกเลิก"),
+                      content: const Text("คุณต้องการยกเลิกนัดหมายนี้หรือไม่?"),
+                      actions: [
+                        TextButton(
+                            onPressed: () =>
+                                Navigator.pop(context, false),
+                            child: const Text("ไม่")),
+                        TextButton(
+                            onPressed: () =>
+                                Navigator.pop(context, true),
+                            child: const Text("ใช่")),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 45,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text(
-                              "ยืนยันการยกเลิก",
-                              style: GoogleFonts.kanit(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            content: Text(
-                              "คุณต้องการยกเลิกนัดหมายนี้ใช่หรือไม่?",
-                              style: GoogleFonts.kanit(),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: Text(
-                                  "ไม่",
-                                  style: GoogleFonts.kanit(color: Colors.grey),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pop(context); // ปิด Dialog
-                                  setState(() {
-                                    myAppointments.removeAt(index); // ลบข้อมูล
-                                  });
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'ยกเลิกนัดหมายเรียบร้อยแล้ว',
-                                        style: GoogleFonts.kanit(),
-                                      ),
-                                      backgroundColor: Colors.redAccent,
-                                    ),
-                                  );
-                                },
-                                child: Text(
-                                  "ใช่, ยกเลิก",
-                                  style: GoogleFonts.kanit(color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFEBEE),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: Text(
-                        "ยกเลิกนัดหมาย",
-                        style: GoogleFonts.kanit(color: Colors.red),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
+                  );
+
+                  if (confirm != true) return;
+
+                  setState(() => isProcessing = true);
+
+                  final success =
+                      await AppointmentService.cancelAppointment(apt.id!);
+
+                  setState(() => isProcessing = false);
+
+                  if (success) {
+                    setState(() {
+                      appointments.removeAt(index);
+                    });
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("ยกเลิกนัดหมายแล้ว")),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("ยกเลิกไม่สำเร็จ")),
+                    );
+                  }
+                }),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
+}
+
+
+/// ===== BUTTON STYLES =====
+
+Widget _blueButton(String text, VoidCallback onTap) {
+  return _buttonBase(
+      text, onTap, const Color(0xFFEAF6FF), Colors.blue);
+}
+
+Widget _grayButton(String text, VoidCallback onTap) {
+  return _buttonBase(
+      text, onTap, const Color(0xFFF3F3F3), Colors.orange);
+}
+
+Widget _redButton(String text, VoidCallback onTap) {
+  return _buttonBase(
+      text, onTap, const Color(0xFFFFEBEE), Colors.red);
+}
+
+Widget _buttonBase(
+    String text, VoidCallback onTap, Color bg, Color textColor) {
+  return SizedBox(
+    width: double.infinity,
+    height: 45,
+    child: ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: bg,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30)),
+      ),
+      child:
+          Text(text, style: GoogleFonts.kanit(color: textColor)),
+    ),
+  );
 }
