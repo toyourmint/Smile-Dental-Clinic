@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 🌟 เพิ่ม import นี้
 import 'package:mylogin/screen/register_screen.dart';
 import 'package:mylogin/widget/logo.dart';
 import 'package:mylogin/services/auth_service.dart';
@@ -19,14 +20,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  /// =============================
-  /// LOGIN FUNCTION
-  /// =============================
   Future<void> _login() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
-    /// เช็คข้อมูลก่อนยิง API
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("กรุณากรอกข้อมูลให้ครบ")),
@@ -45,20 +42,25 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (result['statusCode'] == 200) {
-        /// สำเร็จ → ไปหน้า Home
+        // 🌟 1. ดึง Token และเซฟลงเครื่อง
+        final String? token = result['body']['token']; // เช็ค key ให้ตรงกับที่ backend ส่งมา (มักจะเป็น 'token')
+        if (token != null) {
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString('my_token', token); // เซฟ Token เก็บไว้!
+        }
+
+        // สำเร็จ → ไปหน้า Home
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => MainWrapper(
-            userName: result['body']['user']['first_name'],
-            userId: result['body']['user']['id'],      // ⭐ สำคัญ
-          ),
-
+              userName: result['body']['user']['first_name'],
+              userId: result['body']['user']['id'], 
+            ),
           ),
         );
 
       } else {
-        /// error จาก backend
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -68,10 +70,8 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e, stack) {
-      /// log ไว้ debug (ไม่โชว์ user)
       debugPrint("LOGIN ERROR: $e");
       debugPrintStack(stackTrace: stack);
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้")),
       );
@@ -82,9 +82,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// =============================
-  /// DISPOSE
-  /// =============================
   @override
   void dispose() {
     emailController.dispose();

@@ -15,6 +15,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/apm', require('./routes/apm'));
 app.use('/api/user', require('./routes/user_profile'));
+app.use('/api/queue', require('./routes/queue'));
 
 app.get('/', (req, res) => {
   res.send('Backend is running');
