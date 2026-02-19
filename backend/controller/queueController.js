@@ -152,6 +152,7 @@ exports.getAllQueues = async (req, res) => {
             SELECT 
                 a.id AS appointment_id,
                 u.user_id, -- 💡 เพิ่มเพื่อส่งไปสร้างคิวได้
+                u.hn,
                 u.first_name, 
                 u.last_name, 
                 p.phone,

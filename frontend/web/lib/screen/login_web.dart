@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       // 2. ยิง API ไปที่ Backend
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/auth/login'),
+        Uri.parse('http://localhost:3000/api/auth/admin'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           // Backend ของคุณใช้ชื่อตัวแปร loginIdentifier รับค่า email หรือ phone
@@ -138,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 30),
 
                     _buildTextField(
-                      label: 'อีเมล หรือ เบอร์โทรศัพท์', // ปรับ label ให้สื่อความหมายตรง backend
+                      label: 'อีเมล', // ปรับ label ให้สื่อความหมายตรง backend
                       controller: _emailController,
                       obscureText: false,
                     ),

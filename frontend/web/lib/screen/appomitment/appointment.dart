@@ -118,7 +118,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   // 💡 ฟังก์ชันยกเลิกนัดหมาย
   void _confirmCancel(dynamic item) {
-    if (item['status'] == 'cancelled') return;
+    if (item['status'] == 'cancelled' || item['status'] == 'completed') return;
 
     showDialog(
       context: context,
@@ -198,7 +198,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     DateTime now = DateTime.now();
     DateTime today = DateTime(now.year, now.month, now.day);
 
-    // 💡 ระบบกรองข้อมูล (แสดงเฉพาะ ปัจจุบัน+อนาคต เป็นค่าเริ่มต้น)
+    // 💡 ระบบกรองข้อมูล
     List<dynamic> filteredAppointments = _appointments.where((item) {
       // 1. กรองตามคำค้นหา (Search)
       bool matchesSearch = true;
@@ -213,7 +213,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       // 2. กรองตามวันที่ (Date Filter)
       bool matchesDate = true;
       
-      // แปลงวันที่จากข้อมูลให้เป็น DateTime
       String dateStr = (item['appointment_date'] ?? "").split('T')[0];
       DateTime? itemDate;
       try {
@@ -236,7 +235,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       } else {
         // ✅ กรณี B: ไม่ได้เลือกวัน (ค่าเริ่มต้น) -> แสดงเฉพาะ "วันนี้" และ "อนาคต"
         if (itemDate != null) {
-           // ถ้าวันที่นัดหมาย มาก่อน วันนี้ (เป็นอดีต) -> ไม่แสดง
            if (itemDate.isBefore(today)) {
              matchesDate = false; 
            }
@@ -363,11 +361,26 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       itemBuilder: (context, index) {
                         final item = filteredAppointments[index];
                         
-                        bool isCancelled = item['status'] == 'cancelled';
-                        Color statusColor = isCancelled ? Colors.red : const Color(0xFF42A5F5);
-                        String statusText = isCancelled ? "ยกเลิก" : (item['status'] ?? "Confirmed");
+                        // 🟢 จัดการสีและข้อความของสถานะ
+                        String rawStatus = item['status'] ?? "booking";
+                        Color statusColor;
+                        String statusText;
+
+                        if (rawStatus == 'cancelled') {
+                          statusColor = Colors.red;
+                          statusText = "ยกเลิก";
+                        } else if (rawStatus == 'completed') {
+                          statusColor = Colors.green; // ✅ สีเขียว
+                          statusText = "เสร็จสิ้น"; 
+                        } else if (rawStatus == 'arrived') {
+                          statusColor = Colors.orange;
+                          statusText = "มาถึงแล้ว";
+                        } else {
+                          statusColor = const Color(0xFF42A5F5); // สีฟ้า (booking)
+                          statusText = (rawStatus == 'booking') ? "จองแล้ว" : rawStatus;
+                        }
                         
-                        // 💡 ดึงชื่อหมอตรงๆ จาก API
+                        // ดึงชื่อหมอตรงๆ จาก API
                         String doctor = item['doctor_name'] ?? "-"; 
 
                         return Container(
@@ -408,8 +421,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                                       child: Text(statusText, style: const TextStyle(color: Colors.white, fontSize: 12)),
                                     ),
                                     const SizedBox(width: 10),
-                                    if (!isCancelled) ...[
-                                      // ปุ่มแก้ไข
+                                    // ซ่อนปุ่มแก้ไข/ยกเลิก ถ้าสถานะเป็น ยกเลิก หรือ เสร็จสิ้น
+                                    if (rawStatus != 'cancelled' && rawStatus != 'completed') ...[
                                       InkWell(
                                         onTap: () {
                                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ระบบแก้ไขกำลังอยู่ในช่วงพัฒนา"), backgroundColor: Colors.orange));
@@ -421,7 +434,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                                         )
                                       ),
                                       const SizedBox(width: 8),
-                                      // ปุ่มยกเลิก
                                       InkWell(
                                         onTap: () => _confirmCancel(item),
                                         child: Container(

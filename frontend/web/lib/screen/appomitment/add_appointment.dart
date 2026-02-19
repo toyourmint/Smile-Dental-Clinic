@@ -281,7 +281,7 @@ class _AddAppointmentDialogState extends State<AddAppointmentDialog> {
                   Expanded(
                     child: _buildTextField(
                       "รหัสผู้ป่วย", 
-                      "SD-XXXXXX", 
+                      "XXXXXX", 
                       controller: _patientIdController, 
                       prefixText: "SD-", 
                       isNumber: true, 
