@@ -1,21 +1,13 @@
 const pool = require('../config/db');
 
 exports.generateQueueNo = async (req, res) => {
-    const { appointment_id, user_id, room } = req.body;
+    // 💡 เพิ่มการรับค่า assign_doctor_name
+    const { appointment_id, user_id, room, assign_doctor_name } = req.body;
     
     const connection = await pool.getConnection(); 
     await connection.beginTransaction();
 
     try {
-        // 1. กำหนด ID หมอตามห้องที่เลือก
-        let assignedDoctorId = null;
-        if (room === 'A') {
-            assignedDoctorId = 1; // ห้อง A ให้เป็นหมอ ID 1
-        } else if (room === 'B') {
-            assignedDoctorId = 2; // ห้อง B ให้เป็นหมอ ID 2
-        }
-
-        // 2. หาคิวล่าสุด
         const [rows] = await connection.query(`
             SELECT COALESCE(MAX(queue_number), 0) AS max_queue 
             FROM queues 
@@ -23,19 +15,29 @@ exports.generateQueueNo = async (req, res) => {
         `);
         const nextQueueNumber = rows[0].max_queue + 1; 
 
-        // 3. สร้างคิว
+        // สร้างคิว
         await connection.query(`
             INSERT INTO queues (appointment_id, user_id, queue_number, queue_date, room, status) 
             VALUES (?, ?, ?, CURDATE(), ?, 'waiting')
         `, [appointment_id, user_id || 0, nextQueueNumber, room]);
 
-        // 4. อัปเดตสถานะการมาถึง + ใส่ชื่อหมอเข้าไปด้วย
-        await connection.query(`
-            UPDATE appointments 
-            SET status = 'arrived',
-                doctor_id = COALESCE(doctor_id, ?)  -- ถ้ายังไม่มีหมอ ให้ใส่หมอประจำห้องลงไป
-            WHERE id = ?
-        `, [assignedDoctorId, appointment_id]);
+        // 💡 เช็คว่าต้องอัปเดตชื่อหมอในการนัดหมายด้วยไหม
+        if (assign_doctor_name) {
+            // ดึง ID ของหมอจากชื่อ
+            const [docs] = await connection.query('SELECT id FROM doctors WHERE doctor_name = ? LIMIT 1', [assign_doctor_name]);
+            if (docs.length > 0) {
+                await connection.query(`
+                    UPDATE appointments 
+                    SET status = 'arrived', doctor_id = ? 
+                    WHERE id = ?
+                `, [docs[0].id, appointment_id]);
+            } else {
+                await connection.query(`UPDATE appointments SET status = 'arrived' WHERE id = ?`, [appointment_id]);
+            }
+        } else {
+            // ไม่อัปเดตหมอ อัปเดตแค่สถานะ
+            await connection.query(`UPDATE appointments SET status = 'arrived' WHERE id = ?`, [appointment_id]);
+        }
 
         await connection.commit(); 
         res.status(200).json({ message: "สร้างคิวสำเร็จ", queue_label: `${room}${nextQueueNumber}` });
@@ -135,7 +137,7 @@ exports.skipQueueNo = async (req, res) => {
 
         res.status(200).json({ 
             message: "ข้ามคิวสำเร็จ และเรียกคิวถัดไปเรียบร้อย", 
-            called_queue: `${room}${nextQueue.queue_number}` 
+            called_queue: `${room}${nextQueue.queue_number} `
         });
     } catch (error) {
         console.error("Error skipping queue:", error);
@@ -163,15 +165,15 @@ exports.getAllQueues = async (req, res) => {
         let sql = `
             SELECT 
                 a.id AS appointment_id,
-                u.user_id, -- 💡 เพิ่มเพื่อส่งไปสร้างคิวได้
-                u.hn,
+                u.user_id,
+                u.hn, 
                 u.first_name, 
                 u.last_name, 
                 p.phone,
                 a.appointment_date, 
                 a.appointment_time, 
                 a.reason AS treatment,
-                d.doctor_name AS doctor_name,
+                d.doctor_name, 
                 q.queue_number, 
                 q.room AS assigned_room, 
                 CASE 

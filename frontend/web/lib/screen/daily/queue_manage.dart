@@ -4,6 +4,7 @@ class QueueManagerSection extends StatelessWidget {
   final String queueNumber;
   final String roomNumber;
   final String currentPatientName;
+  final String doctorName; // 💡 1. เพิ่มตัวรับค่าชื่อแพทย์
   final List<Map<String, String>> nextQueues;
   final VoidCallback? onNext;
   final VoidCallback? onSkip;
@@ -13,6 +14,7 @@ class QueueManagerSection extends StatelessWidget {
     required this.queueNumber,
     required this.roomNumber,
     required this.currentPatientName,
+    required this.doctorName, // 💡 2. รับค่าเข้ามาใน Constructor
     required this.nextQueues,
     this.onNext,
     this.onSkip,
@@ -39,6 +41,7 @@ class QueueManagerSection extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ฝั่งซ้าย: สถานะคิว
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,8 +65,26 @@ class QueueManagerSection extends StatelessWidget {
                           ],
                         ),
                       ),
+                      
+                      // ฝั่งขวา: ห้องตรวจ + ชื่อแพทย์
                       Column(
+                        crossAxisAlignment: CrossAxisAlignment.end, // จัดชิดขวา
                         children: [
+                          // 💡 3. แสดงชื่อแพทย์ที่นี่ (เหนือห้องตรวจ)
+                          if (doctorName != "-" && doctorName.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(4)
+                              ),
+                              child: Text(
+                                "แพทย์: $doctorName",
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue.shade800),
+                              ),
+                            ),
+
                           const Text("ห้องตรวจ", style: TextStyle(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 5),
                           CircleAvatar(
@@ -100,14 +121,12 @@ class QueueManagerSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   
-                  // ถ้าไม่มีคิวรอ ให้แสดงข้อความว่างๆ
                   if (nextQueues.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 20),
                       child: Text("- ไม่มีคิวรอ -", style: TextStyle(color: Colors.grey.shade400)),
                     ),
 
-                  // Loop แสดงรายการคิวที่รอ
                   ...nextQueues.map((q) => Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
                     child: Row(
@@ -138,7 +157,6 @@ class QueueManagerSection extends StatelessWidget {
     );
   }
 
-  // Helper สำหรับสร้างปุ่ม
   Widget _buildBtn(String text, Color color, VoidCallback? onTap) {
     return SizedBox(
       height: 40,
