@@ -111,7 +111,7 @@ class AppointmentService {
 
   static Future<Map<String, dynamic>?> getMyQueue() async {
     final prefs = await SharedPreferences.getInstance();
-    int? userId = prefs.getInt('user_id');   // ⭐ ดึง user_id จาก login
+    int? userId = prefs.getInt('user_id');
 
     if (userId == null) {
       throw Exception("User not found");
@@ -121,16 +121,42 @@ class AppointmentService {
 
     final res = await http.get(
       Uri.parse('$baseUrl/api/queue/my/$userId'),
-      headers: headers,
+      headers: {
+        ...headers,
+        "Cache-Control": "no-cache",   // ⭐ ป้องกัน cache
+      },
     );
 
     if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      return data; // null = ไม่มีคิว
-    } else {
-      throw Exception('โหลดคิวไม่สำเร็จ');
+
+      // ⭐ debug response
+      print("QUEUE API RAW => ${res.body}");
+
+      if (res.body.isEmpty || res.body == "null") {
+        return null;
+      }
+
+      final data = json.decode(res.body) as Map<String, dynamic>;
+
+
+      // ⭐ กัน backend ส่ง {} กลับมา
+      if (data == null || data is! Map || data.isEmpty) {
+        return null;
+      }
+
+      // ⭐ กันสถานะที่ไม่ต้องแสดง
+      final status = data['status'];
+
+      if (status != 'waiting' && status != 'in_room') {
+        return null;
+      }
+
+      return data;
     }
+
+    throw Exception('โหลดคิวไม่สำเร็จ');
   }
+
 
 
 

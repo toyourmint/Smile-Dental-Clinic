@@ -330,7 +330,7 @@ exports.getMyAppointments = async (req, res) => {
       JOIN user_profiles p ON p.user_id = a.user_id
       LEFT JOIN doctors d ON d.id = a.doctor_id
       WHERE a.user_id = ?
-        AND a.status != 'cancelled'
+        AND a.status NOT IN ('completed','cancelled')
       ORDER BY a.id DESC
     `;
 
@@ -343,5 +343,6 @@ exports.getMyAppointments = async (req, res) => {
     res.status(500).json({ message: 'error' });
   }
 };
+
 
 

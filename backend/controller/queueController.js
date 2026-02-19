@@ -220,10 +220,10 @@ exports.getMyQueue = async (req, res) => {
             FROM queues q
             JOIN appointments a ON q.appointment_id = a.id
             WHERE q.user_id = ?
-            AND q.status IN ('waiting','in_room')
             AND q.queue_date = CURDATE()
+            AND q.status IN ('waiting','in_room')   -- ⭐ สำคัญมาก
+            ORDER BY q.queue_number ASC
             LIMIT 1
-
         `, [user_id]);
 
         if (rows.length === 0) {
@@ -237,3 +237,4 @@ exports.getMyQueue = async (req, res) => {
         res.status(500).json({ error: "ดึงคิวไม่สำเร็จ" });
     }
 };
+

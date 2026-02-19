@@ -34,9 +34,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
       if (!mounted) return;
 
       setState(() {
-        appointments = data;
+        appointments = data.where((a) =>
+            a.status != 'cancelled' &&
+            a.status != 'completed'
+        ).toList();
+
         isLoadingAppointments = false;
       });
+
     } catch (e) {
       debugPrint("โหลดนัดหมายผิดพลาด: $e");
       setState(() => isLoadingAppointments = false);

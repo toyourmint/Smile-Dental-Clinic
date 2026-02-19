@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadDoctors();
     _loadAppointments();
     _loadMyQueue();   // ⭐ โหลดคิวของผู้ใช้
+    _startQueueAutoRefresh();   // ⭐ เพิ่ม
   }
 
   /// โหลดนัดหมาย
@@ -42,7 +43,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final data = await AppointmentService.fetchAppointments();
       if (mounted) {
         setState(() {
-          appointments = data;
+          appointments = data.where((a) =>
+          a.status != 'cancelled' &&
+          a.status != 'completed'
+        ).toList();
+
           isAppointmentLoading = false;
         });
       }
@@ -57,7 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final q = await AppointmentService.getCurrentQueueFromClinic();
       if (mounted) {
         setState(() {
-          currentClinicQueue = q;
+          currentClinicQueue = q.replaceAll(RegExp(r'[^0-9]'), '');
+
           isQueueLoading = false;
         });
       }
@@ -71,16 +77,45 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final q = await AppointmentService.getMyQueue();
 
-      if (mounted) {
-        setState(() {
-          myQueue = q;
-          hasActiveQueue = q != null;
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        if (q == null) {
+          /// ⭐ ล้างค่าทั้งหมด
+          myQueue = null;
+          hasActiveQueue = false;
+          return;
+        }
+
+        final status = q['status'];
+
+        if (status != 'waiting' && status != 'in_room') {
+          /// ⭐ กันสถานะอื่น
+          myQueue = null;
+          hasActiveQueue = false;
+          return;
+        }
+
+        /// ⭐ แสดงคิวปกติ
+        myQueue = q;
+        hasActiveQueue = true;
+      });
+
     } catch (e) {
       print("Queue error: $e");
     }
   }
+
+
+  void _startQueueAutoRefresh() {
+  Future.doWhile(() async {
+    await Future.delayed(const Duration(seconds: 5));
+    await _loadQueue();
+    await _loadMyQueue();   // ⭐ อัปเดตสถานะคิวผู้ใช้ด้วย
+    return mounted;
+  });
+}
+
 
   /// โหลดรายชื่อหมอ
   Future<void> _loadDoctors() async {
@@ -140,7 +175,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Center(child: CircularProgressIndicator())
 
                 // ⭐ แสดงคิวเฉพาะเมื่อมี waiting queue
-                else if (hasActiveQueue)
+                else if (hasActiveQueue && myQueue != null)
+
                  _buildQueueStatusCard(
                   int.parse(myQueue!['queue_number'].toString()),
                   myQueue!['room'] ?? 'A',
@@ -211,7 +247,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String serviceName,
 ) {
   int currentQ = int.tryParse(currentClinicQueue) ?? 0;
-  int waitingCount = myQueueNumber - currentQ;
+  int waitingCount = (myQueueNumber - currentQ).clamp(0, 999);
+
 
   return Container(
     width: double.infinity,

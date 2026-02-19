@@ -7,6 +7,7 @@ class AppointmentModel {
   final String firstName;
   final String lastName;
   final String doctorName;
+  final String status;
 
   AppointmentModel({
     required this.id,
@@ -17,6 +18,7 @@ class AppointmentModel {
     required this.firstName,
     required this.lastName,
     this.doctorName = "ไม่ระบุแพทย์",
+    required this.status,
   });
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
@@ -51,6 +53,7 @@ class AppointmentModel {
       /// ⭐ ชื่อผู้ป่วย
       firstName: json['first_name'] ?? "",
       lastName: json['last_name'] ?? "",
+      status: json['status'] ?? json['current_status'] ?? "confirmed",
     );
   }
 
@@ -64,6 +67,7 @@ class AppointmentModel {
       'firstName': firstName,
       'lastName': lastName,
       'doctorName': doctorName,
+      
     };
   }
 }
