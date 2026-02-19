@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart'; 
+
 import 'package:flutter_application_1/screen/appomitment/add_appointment.dart'; 
 
 class AppointmentScreen extends StatefulWidget {
@@ -15,6 +17,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   DateTime? _selectedFilterDate;
+  
+  String _selectedStatusFilter = 'ทั้งหมด';
 
   List<dynamic> _appointments = [];
   bool _isLoading = true;
@@ -31,7 +35,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     super.dispose();
   }
 
-  // 💡 ฟังก์ชันดึงตารางนัดหมายทั้งหมด
   Future<void> _fetchAppointments() async {
     setState(() => _isLoading = true);
     try {
@@ -78,7 +81,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     }
   }
 
-  // ฟังก์ชันเปิดปฏิทินกรองวันที่
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -103,20 +105,22 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     }
   }
 
-  // ฟังก์ชันเปิดหน้าต่างเพิ่มการนัดหมาย
   void _openAddDialog() async {
     final result = await showDialog(
       context: context,
       builder: (context) => const AddAppointmentDialog(),
     );
-    
-    // ถ้ารับค่า success กลับมาแปลว่าจองสำเร็จ ให้รีเฟรชตาราง
-    if (result == "success") {
-      _fetchAppointments();
-    }
+    if (result == "success") _fetchAppointments();
   }
 
-  // 💡 ฟังก์ชันยกเลิกนัดหมาย
+  void _openEditDialog(Map<String, dynamic> item) async {
+    final result = await showDialog(
+      context: context,
+      builder: (context) => EditAppointmentDialog(initialData: item),
+    );
+    if (result == "success") _fetchAppointments();
+  }
+
   void _confirmCancel(dynamic item) {
     if (item['status'] == 'cancelled' || item['status'] == 'completed') return;
 
@@ -140,7 +144,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(context); // ปิดหน้าต่างยืนยันก่อน
+                Navigator.pop(context);
                 try {
                   SharedPreferences prefs = await SharedPreferences.getInstance();
                   String? myToken = prefs.getString('my_token');
@@ -154,7 +158,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   );
                   
                   if (response.statusCode == 200) {
-                    _fetchAppointments(); // รีเฟรชตาราง
+                    _fetchAppointments(); 
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ยกเลิกสำเร็จ"), backgroundColor: Colors.green));
                     }
@@ -178,10 +182,12 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     );
   }
 
+  // 💡 แก้ไขฟังก์ชันนี้ให้แปลงเป็น พ.ศ. (+543)
   String _formatDate(String isoString) {
     try {
       DateTime dt = DateTime.parse(isoString);
-      return "${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year}";
+      int thaiYear = dt.year + 543; // บวก 543 เป็น พ.ศ.
+      return "${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/$thaiYear";
     } catch(e) { 
       return isoString; 
     }
@@ -194,37 +200,30 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🗓️ กำหนดวันปัจจุบัน (ตัดเวลาออก เหลือแค่ วัน/เดือน/ปี เพื่อใช้เปรียบเทียบ)
     DateTime now = DateTime.now();
     DateTime today = DateTime(now.year, now.month, now.day);
 
-    // 💡 ระบบกรองข้อมูล
     List<dynamic> filteredAppointments = _appointments.where((item) {
-      // 1. กรองตามคำค้นหา (Search)
       bool matchesSearch = true;
       if (_searchQuery.isNotEmpty) {
         String hn = (item['hn'] ?? "").toLowerCase();
-        String name = "${item['first_name']} ${item['last_name']}".toLowerCase();
+        String name = "${item['title'] ?? ''} ${item['first_name']} ${item['last_name']}".toLowerCase();
         String phone = (item['phone'] ?? "").toLowerCase();
         String searchLower = _searchQuery.toLowerCase();
         matchesSearch = hn.contains(searchLower) || name.contains(searchLower) || phone.contains(searchLower);
       }
       
-      // 2. กรองตามวันที่ (Date Filter)
       bool matchesDate = true;
-      
       String dateStr = (item['appointment_date'] ?? "").split('T')[0];
       DateTime? itemDate;
       try {
         itemDate = DateTime.parse(dateStr);
-        // ตัดเวลาทิ้งเพื่อให้เปรียบเทียบแค่ "วันที่"
         itemDate = DateTime(itemDate.year, itemDate.month, itemDate.day);
       } catch (e) {
         itemDate = null;
       }
 
       if (_selectedFilterDate != null) {
-        // ✅ กรณี A: ผู้ใช้กดเลือกวันที่ (Filter) -> ให้แสดงวันที่นั้นๆ (แม้จะเป็นอดีต)
         if (itemDate != null) {
            matchesDate = itemDate.isAtSameMomentAs(
              DateTime(_selectedFilterDate!.year, _selectedFilterDate!.month, _selectedFilterDate!.day)
@@ -233,15 +232,26 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
            matchesDate = false;
         }
       } else {
-        // ✅ กรณี B: ไม่ได้เลือกวัน (ค่าเริ่มต้น) -> แสดงเฉพาะ "วันนี้" และ "อนาคต"
         if (itemDate != null) {
            if (itemDate.isBefore(today)) {
              matchesDate = false; 
            }
         }
       }
+
+      bool matchesStatus = true;
+      String rawStatus = item['status'] ?? "booking";
+      if (_selectedStatusFilter == 'จองแล้ว') {
+        matchesStatus = rawStatus == 'booking';
+      } else if (_selectedStatusFilter == 'รับคิวแล้ว') {
+        matchesStatus = rawStatus == 'arrived';
+      } else if (_selectedStatusFilter == 'เสร็จสิ้น') {
+        matchesStatus = rawStatus == 'completed';
+      } else if (_selectedStatusFilter == 'ยกเลิก') {
+        matchesStatus = rawStatus == 'cancelled';
+      }
       
-      return matchesSearch && matchesDate;
+      return matchesSearch && matchesDate && matchesStatus;
     }).toList();
 
     return Scaffold(
@@ -304,23 +314,39 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   ),
                 ),
                 const SizedBox(width: 20),
-                OutlinedButton.icon(
-                  onPressed: () => _selectDate(context),
-                  icon: Icon(Icons.calendar_today_outlined, size: 16, color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700),
-                  label: Text(
-                    _selectedFilterDate == null 
-                      ? "Filter by Date" 
-                      : "${_selectedFilterDate!.day.toString().padLeft(2, '0')}/${_selectedFilterDate!.month.toString().padLeft(2, '0')}/${_selectedFilterDate!.year}",
-                    style: TextStyle(
-                      color: _selectedFilterDate == null ? Colors.grey.shade700 : Colors.blue.shade800,
-                      fontWeight: _selectedFilterDate == null ? FontWeight.normal : FontWeight.bold
-                    )
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.white, 
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14), 
-                    side: BorderSide(color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700, width: 1.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                
+                // 💡 ปุ่ม Filter เปลี่ยนปีเป็น พ.ศ. โดย +543
+                InkWell(
+                  onTap: () => _selectDate(context),
+                  borderRadius: BorderRadius.circular(25),
+                  child: Container(
+                    height: 45,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(
+                        color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700, 
+                        width: 1.5
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.calendar_today_outlined, size: 16, color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700),
+                        const SizedBox(width: 8),
+                        Text(
+                          _selectedFilterDate == null 
+                            ? "Filter by Date" 
+                            : "${_selectedFilterDate!.day.toString().padLeft(2, '0')}/${_selectedFilterDate!.month.toString().padLeft(2, '0')}/${_selectedFilterDate!.year + 543}", // +543 ตรงนี้
+                          style: TextStyle(
+                            color: _selectedFilterDate == null ? Colors.grey.shade700 : Colors.blue.shade800,
+                            fontWeight: _selectedFilterDate == null ? FontWeight.normal : FontWeight.bold
+                          )
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 if (_selectedFilterDate != null) ...[
@@ -329,7 +355,57 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     onTap: () => setState(() => _selectedFilterDate = null),
                     child: const Icon(Icons.cancel, size: 18, color: Colors.redAccent)
                   )
-                ]
+                ],
+
+                const SizedBox(width: 20),
+
+                PopupMenuButton<String>(
+                  onSelected: (String value) {
+                    setState(() {
+                      _selectedStatusFilter = value;
+                    });
+                  },
+                  offset: const Offset(0, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(value: 'ทั้งหมด', child: Text('สถานะ: ทั้งหมด')),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem<String>(value: 'จองแล้ว', child: Text('🔵 จองแล้ว (Booking)')),
+                    const PopupMenuItem<String>(value: 'รับคิวแล้ว', child: Text('🟠 รับคิวแล้ว (Arrived)')),
+                    const PopupMenuItem<String>(value: 'เสร็จสิ้น', child: Text('🟢 เสร็จสิ้น (Completed)')),
+                    const PopupMenuItem<String>(value: 'ยกเลิก', child: Text('🔴 ยกเลิก (Cancelled)')),
+                  ],
+                  child: Container(
+                    height: 45,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(
+                        color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.blue : Colors.blue.shade700, 
+                        width: 1.5
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.filter_alt_outlined, size: 16, color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.blue : Colors.blue.shade700),
+                        const SizedBox(width: 8),
+                        Text(
+                          "สถานะ: $_selectedStatusFilter",
+                          style: TextStyle(
+                            color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.grey.shade700 : Colors.blue.shade800,
+                            fontWeight: _selectedStatusFilter == 'ทั้งหมด' ? FontWeight.normal : FontWeight.bold
+                          )
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey.shade500),
+                      ],
+                    ),
+                  ),
+                ),
+
               ],
             ),
             const SizedBox(height: 30),
@@ -340,12 +416,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.black12))),
               child: Row(children: const [
                 SizedBox(width: 60),
-                Expanded(flex: 2, child: Text("ชื่อผู้ป่วย", style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 3, child: Text("ชื่อผู้ป่วย", style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(flex: 1, child: Text("วันที่", style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(flex: 1, child: Text("เวลา", style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 2, child: Text("หัตถการ / แพทย์", style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 3, child: Text("ประเภทการรักษา", style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 2, child: Text("แพทย์", style: TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(flex: 2, child: Text("เบอร์โทรศัพท์", style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 2, child: Text("สถานะ", style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 2, child: Text("สถานะ / จัดการ", style: TextStyle(fontWeight: FontWeight.bold))),
               ]),
             ),
 
@@ -361,7 +438,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       itemBuilder: (context, index) {
                         final item = filteredAppointments[index];
                         
-                        // 🟢 จัดการสีและข้อความของสถานะ
                         String rawStatus = item['status'] ?? "booking";
                         Color statusColor;
                         String statusText;
@@ -370,18 +446,22 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                           statusColor = Colors.red;
                           statusText = "ยกเลิก";
                         } else if (rawStatus == 'completed') {
-                          statusColor = Colors.green; // ✅ สีเขียว
+                          statusColor = Colors.green; 
                           statusText = "เสร็จสิ้น"; 
                         } else if (rawStatus == 'arrived') {
                           statusColor = Colors.orange;
-                          statusText = "มาถึงแล้ว";
+                          statusText = "รับคิวแล้ว";
                         } else {
-                          statusColor = const Color(0xFF42A5F5); // สีฟ้า (booking)
+                          statusColor = const Color(0xFF42A5F5); 
                           statusText = (rawStatus == 'booking') ? "จองแล้ว" : rawStatus;
                         }
                         
-                        // ดึงชื่อหมอตรงๆ จาก API
+                        String titleStr = item['title'] != null && item['title'] != 'null' ? item['title'] : "";
+                        String fullName = "$titleStr${titleStr.isNotEmpty ? ' ' : ''}${item['first_name']} ${item['last_name']}".trim();
+                        String hn = item['hn'] ?? "-";
+                        String initialChar = (item['first_name'] != null && item['first_name'].isNotEmpty) ? item['first_name'][0] : "?";
                         String doctor = item['doctor_name'] ?? "-"; 
+                        String phone = item['phone'] ?? "-";
 
                         return Container(
                           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
@@ -391,25 +471,27 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                               CircleAvatar(
                                 radius: 20, 
                                 backgroundColor: Colors.blue.shade100, 
-                                child: Text((item['first_name'] ?? "?")[0], style: TextStyle(color: Colors.blue.shade900))
+                                child: Text(initialChar, style: TextStyle(color: Colors.blue.shade900))
                               ),
                               const SizedBox(width: 20),
                               
-                              Expanded(flex: 2, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text("${item['first_name']} ${item['last_name']}", style: const TextStyle(fontWeight: FontWeight.w500)),
-                                const SizedBox(height: 2),
-                                Text(item['hn'] ?? "-", style: TextStyle(color: Colors.blue.shade700, fontSize: 11, fontWeight: FontWeight.bold))
-                              ])),
+                              Expanded(
+                                flex: 3, 
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start, 
+                                  children: [
+                                    Text(fullName, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                    const SizedBox(height: 4),
+                                    Text(hn, style: TextStyle(color: Colors.blue.shade700, fontSize: 11, fontWeight: FontWeight.bold))
+                                  ]
+                                )
+                              ),
                               
-                              Expanded(flex: 1, child: Text(_formatDate(item['appointment_date']))),
+                              Expanded(flex: 1, child: Text(_formatDate(item['appointment_date']))), // 💡 แสดงเป็น พ.ศ.
                               Expanded(flex: 1, child: Text(_formatTime(item['appointment_time']))),
-                              
-                              Expanded(flex: 2, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text(item['reason'] ?? "-", style: const TextStyle(fontWeight: FontWeight.w500)),
-                                Text(doctor, style: const TextStyle(color: Colors.black54, fontSize: 11)),
-                              ])),
-                              
-                              Expanded(flex: 2, child: Text(item['phone'] ?? "-")),
+                              Expanded(flex: 3, child: Text(item['reason'] ?? "-", style: const TextStyle(color: Colors.black87))),
+                              Expanded(flex: 2, child: Text(doctor, style: const TextStyle(color: Colors.black54))),
+                              Expanded(flex: 2, child: Text(phone, style: const TextStyle(color: Colors.black87))),
                               
                               Expanded(
                                 flex: 2,
@@ -421,12 +503,10 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                                       child: Text(statusText, style: const TextStyle(color: Colors.white, fontSize: 12)),
                                     ),
                                     const SizedBox(width: 10),
-                                    // ซ่อนปุ่มแก้ไข/ยกเลิก ถ้าสถานะเป็น ยกเลิก หรือ เสร็จสิ้น
-                                    if (rawStatus != 'cancelled' && rawStatus != 'completed') ...[
+                                    
+                                    if (rawStatus != 'cancelled' && rawStatus != 'completed' && rawStatus != 'arrived') ...[
                                       InkWell(
-                                        onTap: () {
-                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ระบบแก้ไขกำลังอยู่ในช่วงพัฒนา"), backgroundColor: Colors.orange));
-                                        },
+                                        onTap: () => _openEditDialog(item),
                                         child: Container(
                                           padding: const EdgeInsets.all(4), 
                                           decoration: BoxDecoration(border: Border.all(color: Colors.black87), borderRadius: BorderRadius.circular(4)), 
@@ -434,6 +514,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                                         )
                                       ),
                                       const SizedBox(width: 8),
+                                    ],
+
+                                    if (rawStatus != 'cancelled' && rawStatus != 'completed') ...[
                                       InkWell(
                                         onTap: () => _confirmCancel(item),
                                         child: Container(

@@ -158,7 +158,7 @@ exports.getAvailableSlots = async (req, res) => {
     }
 };
 
-// 💡 5. ดึงข้อมูลตาราง โดยเชื่อมกับ d.id ของหมอให้ถูกต้อง
+// 💡 ดึงข้อมูลตาราง โดยเชื่อมกับ d.id ของหมอให้ถูกต้อง และเพิ่ม hn, title, phone, status
 exports.getAllAppointments = async (req, res) => {
     try {
         const sql = `
@@ -168,14 +168,17 @@ exports.getAllAppointments = async (req, res) => {
                 a.appointment_time,
                 a.reason,
                 a.notes,
+                a.status,          -- 💡 เพิ่ม status
+                p.hn,              -- 💡 เพิ่ม hn
+                p.title,           -- 💡 เพิ่ม title
                 p.first_name,
                 p.last_name,
+                u.phone,           -- 💡 เพิ่ม phone
                 d.doctor_name
             FROM appointments a
             JOIN users u ON a.user_id = u.id
             JOIN user_profiles p ON u.id = p.user_id
             LEFT JOIN doctors d ON a.doctor_id = d.id
-            WHERE a.status != 'cancelled'   -- ⭐ สำคัญมาก
             ORDER BY a.appointment_date ASC, a.appointment_time ASC
         `;
 
@@ -251,4 +254,62 @@ exports.rescheduleAppointment = async (req, res) => {
     console.error(error);
     res.status(500).json({ success: false });
   }
+};
+
+exports.editAppointment = async (req, res) => {
+    const connection = await pool.getConnection();
+
+    try {
+        const { id } = req.params; 
+        const { doctor_name, appointment_date, appointment_time, reason, notes } = req.body;
+
+        if (!appointment_date || !appointment_time) {
+            connection.release();
+            return res.status(400).json({ success: false, message: 'กรุณาระบุวันที่และเวลา' });
+        }
+
+        await connection.beginTransaction();
+
+        // 1. หา id หมอจากชื่อ (ถ้ามีการเปลี่ยนหมอ)
+        let doctor_id = null;
+        if (doctor_name && doctor_name !== "-") {
+            const [docs] = await connection.execute('SELECT id FROM doctors WHERE doctor_name = ? LIMIT 1', [doctor_name]);
+            if (docs.length > 0) {
+                doctor_id = docs[0].id;
+            }
+        }
+
+        // 2. เช็คโควตาคิว 4 คน (ต้องข้ามการนับคิวตัวเองด้วยเงื่อนไข AND id != ?)
+        const checkCapacitySql = `
+            SELECT COUNT(id) as total_bookings 
+            FROM appointments 
+            WHERE appointment_date = ? AND appointment_time = ? AND status != 'cancelled' AND id != ?
+            FOR UPDATE
+        `;
+        const [capacityResult] = await connection.execute(checkCapacitySql, [appointment_date, appointment_time, id]);
+        
+        if (capacityResult[0].total_bookings >= 4) {
+            await connection.rollback();
+            connection.release();
+            return res.status(400).json({ success: false, message: 'คิวเวลานี้เต็มแล้ว (ครบ 4 คน)' });
+        }
+
+        // 3. บันทึกการแก้ไขลงตาราง (ไม่อัปเดต user_id)
+        const updateSql = `
+            UPDATE appointments 
+            SET doctor_id = ?, appointment_date = ?, appointment_time = ?, reason = ?, notes = ?
+            WHERE id = ?
+        `;
+        await connection.execute(updateSql, [doctor_id, appointment_date, appointment_time, reason || null, notes || null, id]);
+
+        await connection.commit();
+        res.status(200).json({ success: true, message: 'แก้ไขการนัดหมายสำเร็จ' });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('Edit Appointment Error:', error);
+        res.status(500).json({ success: false, message: 'ไม่สามารถแก้ไขข้อมูลได้' });
+    } finally {
+        if (connection) connection.release();
+    }
 };
