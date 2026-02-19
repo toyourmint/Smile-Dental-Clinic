@@ -43,12 +43,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (result['statusCode'] == 200) {
         // 🌟 1. ดึง Token และเซฟลงเครื่อง
-        final String? token = result['body']['token']; // เช็ค key ให้ตรงกับที่ backend ส่งมา (มักจะเป็น 'token')
+        final String? token = result['body']['token'];
+        final int userId = result['body']['user']['id'];   // ⭐ เพิ่มบรรทัดนี้
+
         if (token != null) {
           SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.clear(); // ⭐ ลบ token เก่า
-          await prefs.setString('my_token', token);  // ⭐ ต้องชื่อนี้เท่านั้น
+          await prefs.clear();
+
+          await prefs.setString('my_token', token);
+          await prefs.setInt('user_id', userId);   // ⭐ บันทึก user id
         }
+
 
         // สำเร็จ → ไปหน้า Home
         Navigator.pushReplacement(

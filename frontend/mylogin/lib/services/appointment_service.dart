@@ -109,6 +109,31 @@ class AppointmentService {
     }
   }
 
+  static Future<Map<String, dynamic>?> getMyQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('user_id');   // ⭐ ดึง user_id จาก login
+
+    if (userId == null) {
+      throw Exception("User not found");
+    }
+
+    final headers = await _authHeader();
+
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/queue/my/$userId'),
+      headers: headers,
+    );
+
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return data; // null = ไม่มีคิว
+    } else {
+      throw Exception('โหลดคิวไม่สำเร็จ');
+    }
+  }
+
+
+
   /// ==============================
   /// 🔢 คิวปัจจุบัน
   /// ==============================

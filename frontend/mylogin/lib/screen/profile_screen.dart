@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart'; // 🌟 เพิ่ม import นี้
+import 'package:shared_preferences/shared_preferences.dart'; 
+// 🌟 สำคัญ: อย่าลืม Import หน้า Login ของคุณเข้ามา
+import 'package:mylogin/screen/login_screen.dart'; 
 
 class ProfileScreen extends StatefulWidget {
-  // 🌟 ลบ final int userId; ออกไปเลย เพราะเราไม่ใช้ id ส่งไปทาง URL แล้ว
   const ProfileScreen({super.key}); 
 
   @override
@@ -36,9 +37,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? myToken = prefs.getString('my_token');
 
-      print("TOKEN FOUND: $myToken");
-
-      // ✅ ตรวจ token
       if (myToken == null || myToken.isEmpty) {
         setState(() {
           errorMessage = "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่";
@@ -51,7 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $myToken',
+          'Authorization': 'Bearer $myToken', 
         },
       );
 
@@ -65,7 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         });
       } else if (response.statusCode == 401 || response.statusCode == 403) {
         setState(() {
-          errorMessage = "Token หมดอายุ กรุณาเข้าสู่ระบบใหม่";
+          errorMessage = "ไม่มีสิทธิ์เข้าถึง (Token อาจหมดอายุ)";
           isLoading = false;
         });
       } else {
@@ -82,11 +80,49 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  //////////////////////////////////////////////////////
+  /// 🌟 ระบบ Logout (ลงชื่อออก)
+  //////////////////////////////////////////////////////
+  Future<void> _logout() async {
+    // 1. ล้างข้อมูลทั้งหมดในเครื่อง (Token, HN ฯลฯ)
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); 
 
+    if (mounted) {
+      // 2. เด้งกลับไปหน้า Login และล้างประวัติหน้าจอ (ป้องกันการกดย้อนกลับ)
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()), 
+        (route) => false,
+      );
+    }
+  }
 
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("ลงชื่อออก", style: thaiText(weight: FontWeight.bold)),
+        content: Text("คุณต้องการออกจากระบบใช่หรือไม่?", style: thaiText()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("ยกเลิก", style: thaiText()),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // ปิด Dialog
+              _logout(); // เรียกฟังก์ชัน Logout
+            },
+            child: Text("ยืนยัน", style: thaiText(weight: FontWeight.bold).copyWith(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
 
   //////////////////////////////////////////////////////
-  /// 🔹 อายุ
+  /// 🔹 อายุ และ วันที่
   //////////////////////////////////////////////////////
   int calculateAge(String birth) {
     DateTime b = DateTime.parse(birth);
@@ -100,9 +136,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     return age;
   }
 
-  //////////////////////////////////////////////////////
-  /// 🔹 วันที่ไทย
-  //////////////////////////////////////////////////////
   String formatDate(String birth) {
     DateTime d = DateTime.parse(birth);
     return "${d.day} ${_monthThai(d.month)} ${d.year + 543}";
@@ -117,9 +150,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     return months[m];
   }
 
-  //////////////////////////////////////////////////////
-  /// 🔹 รวมที่อยู่ (กัน null)
-  //////////////////////////////////////////////////////
   String fullAddress() {
     return [
       user?['address_line'],
@@ -130,9 +160,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     ].where((e) => e != null && e.toString().isNotEmpty).join(" ");
   }
 
-  //////////////////////////////////////////////////////
-  /// 🔹 TEXT STYLE รองรับภาษาไทยเต็มรูปแบบ
-  //////////////////////////////////////////////////////
   TextStyle thaiText({double size = 16, FontWeight weight = FontWeight.normal}) {
     return TextStyle(
       fontSize: size,
@@ -152,7 +179,16 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("ข้อมูลส่วนตัว")),
+      appBar: AppBar(
+        title: const Text("ข้อมูลส่วนตัว"),
+        // 🌟 จุดที่ 1: ไอคอน Logout มุมขวาบน
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            onPressed: _showLogoutDialog,
+          ),
+        ],
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : errorMessage != null
@@ -224,6 +260,29 @@ class _ProfileScreenState extends State<ProfileScreen>
         _field("อายุ", calculateAge(user!['birth_date']).toString()),
         _field("ที่อยู่", fullAddress()),
         _field("อีเมล", user!['email'] ?? '-'),
+
+        const SizedBox(height: 30),
+
+        // 🌟 จุดที่ 2: ปุ่ม Logout ขนาดใหญ่ด้านล่างข้อมูลส่วนตัว
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton.icon(
+            onPressed: _showLogoutDialog,
+            icon: const Icon(Icons.logout),
+            label: Text("ลงชื่อออกจากระบบ", style: thaiText(weight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade50,
+              foregroundColor: Colors.red,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Colors.redAccent),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -257,27 +316,27 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   //////////////////////////////////////////////////////
-  /// กล่องข้อมูล
-  //////////////////////////////////////////////////////
-  Widget _field(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: thaiText(size: 13, weight: FontWeight.w500)),
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue),
-            ),
-            child: Text(value, style: thaiText()),
+/// กล่องข้อมูล
+//////////////////////////////////////////////////////
+Widget _field(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: thaiText(size: 13, weight: FontWeight.w500)),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue),
           ),
-        ],
-      ),
-    );
-  }
+          child: Text(value, style: thaiText()),
+        ),
+      ],
+    ),
+  );
+} 
 }

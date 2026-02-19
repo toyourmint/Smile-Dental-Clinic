@@ -205,3 +205,33 @@ exports.getAllQueues = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+exports.getMyQueue = async (req, res) => {
+    const { user_id } = req.params;
+
+    try {
+        const [rows] = await pool.query(`
+            SELECT 
+                q.queue_number,
+                q.room,
+                q.status,
+                a.reason AS service_name
+            FROM queues q
+            JOIN appointments a ON q.appointment_id = a.id
+            WHERE q.user_id = ?
+            AND q.status IN ('waiting','in_room')
+            AND q.queue_date = CURDATE()
+            LIMIT 1
+
+        `, [user_id]);
+
+        if (rows.length === 0) {
+            return res.status(200).json(null);
+        }
+
+        res.status(200).json(rows[0]);
+
+    } catch (error) {
+        console.error("Error fetching user queue:", error);
+        res.status(500).json({ error: "ดึงคิวไม่สำเร็จ" });
+    }
+};
