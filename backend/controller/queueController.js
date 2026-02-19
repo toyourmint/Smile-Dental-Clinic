@@ -3,10 +3,19 @@ const pool = require('../config/db');
 exports.generateQueueNo = async (req, res) => {
     const { appointment_id, user_id, room } = req.body;
     
-    const connection = await pool.getConnection(); // 💡 แก้จาก db เป็น pool
+    const connection = await pool.getConnection(); 
     await connection.beginTransaction();
 
     try {
+        // 1. กำหนด ID หมอตามห้องที่เลือก
+        let assignedDoctorId = null;
+        if (room === 'A') {
+            assignedDoctorId = 1; // ห้อง A ให้เป็นหมอ ID 1
+        } else if (room === 'B') {
+            assignedDoctorId = 2; // ห้อง B ให้เป็นหมอ ID 2
+        }
+
+        // 2. หาคิวล่าสุด
         const [rows] = await connection.query(`
             SELECT COALESCE(MAX(queue_number), 0) AS max_queue 
             FROM queues 
@@ -14,16 +23,19 @@ exports.generateQueueNo = async (req, res) => {
         `);
         const nextQueueNumber = rows[0].max_queue + 1; 
 
+        // 3. สร้างคิว
         await connection.query(`
             INSERT INTO queues (appointment_id, user_id, queue_number, queue_date, room, status) 
             VALUES (?, ?, ?, CURDATE(), ?, 'waiting')
         `, [appointment_id, user_id || 0, nextQueueNumber, room]);
 
+        // 4. อัปเดตสถานะการมาถึง + ใส่ชื่อหมอเข้าไปด้วย
         await connection.query(`
             UPDATE appointments 
-            SET status = 'arrived' 
+            SET status = 'arrived',
+                doctor_id = COALESCE(doctor_id, ?)  -- ถ้ายังไม่มีหมอ ให้ใส่หมอประจำห้องลงไป
             WHERE id = ?
-        `, [appointment_id]);
+        `, [assignedDoctorId, appointment_id]);
 
         await connection.commit(); 
         res.status(200).json({ message: "สร้างคิวสำเร็จ", queue_label: `${room}${nextQueueNumber}` });
