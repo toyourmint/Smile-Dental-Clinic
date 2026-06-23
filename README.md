@@ -16,7 +16,7 @@
 ---
 
 ## 📁 โครงสร้างโปรเจค
-
+```
 smile-dental-clinic/
 ├── backend/              → Node.js + Express API
 ├── database/             → SQL migration files
@@ -25,7 +25,7 @@ smile-dental-clinic/
 │   └── web/              → Flutter Web (บุคลากร/Admin)
 ├── docker-compose.yml
 └── README.md
-
+```
 ---
 
 ## ⚙️ สิ่งที่ต้องติดตั้งก่อน
