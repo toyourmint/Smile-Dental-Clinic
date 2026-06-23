@@ -5,7 +5,7 @@ const verify = require('../middlewares/authMiddleware');
 
 router.get('/getprofiles', verify, getUserprofile.getUserProfile);
 router.get('/getallprofiles', getUserprofile.getAllUserProfiles);
-router.post('/edit', verify, getUserprofile.editUserProfile);
+router.put('/editprofile/:id', getUserprofile.editUserProfile);
 
 router.get('/doctor', getUserprofile.getDoctorProfile);
 

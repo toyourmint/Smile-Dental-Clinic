@@ -53,6 +53,7 @@ exports.getAllUserProfiles = async (req, res) => {
     try {
         const sql = `
         SELECT 
+            u.id AS user_id,
             p.hn AS hn,                 
             p.gender AS gender,
             p.citizen_id AS citizen_id,
@@ -92,22 +93,15 @@ exports.getAllUserProfiles = async (req, res) => {
 };
 
 exports.editUserProfile = async (req, res) => {
-  // ดึง connection ออกมาจาก pool เพื่อทำ Transaction
   const connection = await pool.getConnection();
 
   try {
-    // รับข้อมูล id จาก params, query หรือ body (ในตัวอย่างนี้ใช้ body)
+    const id = req.params.id;
+
     const {
-      id, // จำเป็นต้องมีเพื่อระบุตัวผู้ใช้
-      
-      // ข้อมูลจากตาราง users
       phone, email,
-      
-      // ข้อมูลจากตาราง user_profiles
-      hn, gender, citizen_id, title, first_name, last_name, birth_date, 
+      hn, gender, citizen_id, title, first_name, last_name, birth_date,
       allergies, disease, medicine, treatment_right, annual_budget,
-      
-      // ข้อมูลจากตาราง user_addresses
       address_line, subdistrict, district, province, postal_code
     } = req.body;
 
@@ -115,55 +109,49 @@ exports.editUserProfile = async (req, res) => {
       return res.status(400).json({ message: 'Missing user id' });
     }
 
-    // เริ่มต้น Transaction
     await connection.beginTransaction();
 
-    // 1. อัปเดตข้อมูลในตาราง users
-    const updateUsersSql = `
-      UPDATE users 
-      SET phone = ?, email = ? 
-      WHERE id = ?
-    `;
-    await connection.execute(updateUsersSql, [phone, email, id]);
+    // 1. อัปเดตตาราง users
+    await connection.execute(
+      `UPDATE users SET phone = ?, email = ? WHERE id = ?`,
+      [phone ?? null, email ?? null, id]
+    );
 
-    // 2. อัปเดตข้อมูลในตาราง user_profiles
-    const updateProfilesSql = `
-      UPDATE user_profiles 
-      SET hn = ?, gender = ?, citizen_id = ?, title = ?, first_name = ?, 
-          last_name = ?, birth_date = ?, allergies = ?, disease = ?, 
-          medicine = ?, treatment_right = ?, annual_budget = ?
-      WHERE user_id = ?
-    `;
-    await connection.execute(updateProfilesSql, [
-      hn, gender, citizen_id, title, first_name, last_name, birth_date, 
-      allergies, disease, medicine, treatment_right, annual_budget, id
-    ]);
+    // 2. อัปเดตตาราง user_profiles
+    await connection.execute(
+      `UPDATE user_profiles 
+       SET hn = ?, gender = ?, citizen_id = ?, title = ?, first_name = ?, 
+           last_name = ?, birth_date = ?, allergies = ?, disease = ?, 
+           medicine = ?, treatment_right = ?, annual_budget = ?
+       WHERE user_id = ?`,
+      [
+        hn ?? null, gender ?? null, citizen_id ?? null, title ?? null,
+        first_name ?? null, last_name ?? null, birth_date ?? null,
+        allergies ?? null, disease ?? null, medicine ?? null,
+        treatment_right ?? null, annual_budget ?? null, id
+      ]
+    );
 
-    // 3. อัปเดตข้อมูลในตาราง user_addresses
-    const updateAddressesSql = `
-      UPDATE user_addresses 
-      SET address_line = ?, subdistrict = ?, district = ?, province = ?, postal_code = ?
-      WHERE user_id = ?
-    `;
-    await connection.execute(updateAddressesSql, [
-      address_line, subdistrict, district, province, postal_code, id
-    ]);
+    // 3. อัปเดตตาราง user_addresses
+    await connection.execute(
+      `UPDATE user_addresses 
+       SET address_line = ?, subdistrict = ?, district = ?, province = ?, postal_code = ?
+       WHERE user_id = ?`,
+      [
+        address_line ?? null, subdistrict ?? null, district ?? null,
+        province ?? null, postal_code ?? null, id
+      ]
+    );
 
-    // หากคำสั่ง SQL ทั้งหมดทำงานสำเร็จ ให้ยืนยันการบันทึกข้อมูล (Commit)
     await connection.commit();
-
     res.status(200).json({ message: 'อัปเดตข้อมูลผู้ใช้งานสำเร็จ' });
 
   } catch (error) {
-    // หากเกิด Error ระหว่างทาง ให้ยกเลิกการเปลี่ยนแปลงทั้งหมด (Rollback)
     await connection.rollback();
     console.error('Error updating user profile:', error);
     res.status(500).json({ message: 'Internal server error' });
   } finally {
-    // คืน connection กลับเข้า pool เสมอไม่ว่าจะสำเร็จหรือล้มเหลว
-    if (connection) {
-      connection.release();
-    }
+    if (connection) connection.release();
   }
 };
 

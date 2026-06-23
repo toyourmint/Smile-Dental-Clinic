@@ -210,26 +210,65 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
   }
 
   Future<void> _saveToDatabase() async {
-    // 1. ป้องกันการกดซ้อน
-    if (_isLoading) return;
+  if (_isLoading) return;
 
-    // 2. ตรวจสอบข้อมูลเบื้องต้น
-    if (_idCardCtrl.text.trim().isEmpty || 
-        _firstNameCtrl.text.trim().isEmpty || 
-        _lastNameCtrl.text.trim().isEmpty ||
-        _phoneCtrl.text.trim().isEmpty) { 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน'), backgroundColor: Colors.redAccent),
+  print('>>> existingPatient = ${widget.existingPatient}');
+  print('>>> userId = ${widget.existingPatient?.userId}');
+
+  if (_idCardCtrl.text.trim().isEmpty ||
+      _firstNameCtrl.text.trim().isEmpty ||
+      _lastNameCtrl.text.trim().isEmpty ||
+      _phoneCtrl.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน'),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    http.Response response;
+
+    if (widget.existingPatient != null) {
+      // ✅ โหมดแก้ไข — PUT พร้อม userId จริงจากฐานข้อมูล
+      final userId = widget.existingPatient!.userId;
+      print('>>> DEBUG userId = "$userId"');
+      final url = Uri.parse('http://localhost:3000/api/user/editprofile/$userId');
+      print('>>> URL = $url');
+
+      response = await http.put(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "hn": widget.existingPatient!.patientId,
+          "citizen_id": _idCardCtrl.text.trim(),
+          "title": title ?? "",
+          "first_name": _firstNameCtrl.text.trim(),
+          "last_name": _lastNameCtrl.text.trim(),
+          "birth_date": _birthDateCtrl.text.trim(),
+          "gender": gender?.api ?? "other",
+          "email": _emailCtrl.text.trim(),
+          "phone": _phoneCtrl.text.trim(),
+          "address_line": _addressCtrl.text.trim(),
+          "subdistrict": _subDistrictCtrl.text.trim(),
+          "district": _districtCtrl.text.trim(),
+          "province": _provinceCtrl.text.trim(),
+          "postal_code": _zipCodeCtrl.text.trim(),
+          "treatment_right": right?.api ?? "self_pay",
+          "allergies": _allergyCtrl.text.trim(),
+          "disease": _diseaseCtrl.text.trim(),
+          "medicine": _medicationCtrl.text.trim(),
+        }),
       );
-      return; 
-    }
+    } else {
+      // ✅ โหมดเพิ่มใหม่ — POST เหมือนเดิม
+      final url = Uri.parse('http://localhost:3000/api/auth/addUser');
 
-    setState(() => _isLoading = true);
-
-    try {
-      final url = Uri.parse('http://localhost:3000/api/auth/addUser'); 
-      
-      final response = await http.post(
+      response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -238,7 +277,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
           "first_name": _firstNameCtrl.text.trim(),
           "last_name": _lastNameCtrl.text.trim(),
           "birth_date": _birthDateCtrl.text.trim(),
-          "gender": gender?.api ?? "other", 
+          "gender": gender?.api ?? "other",
           "email": _emailCtrl.text.trim(),
           "phone": _phoneCtrl.text.trim(),
           "address_line": _addressCtrl.text.trim(),
@@ -249,69 +288,72 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
           "rights": right?.api ?? "self_pay",
           "allergies": _allergyCtrl.text.trim(),
           "disease": _diseaseCtrl.text.trim(),
-          "medicine": _medicationCtrl.text.trim()
+          "medicine": _medicationCtrl.text.trim(),
         }),
       );
+    }
 
-      // --- กรณีบันทึกสำเร็จ (200 หรือ 201) ---
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (!mounted) return;
-        
-        final dynamic responseData = jsonDecode(response.body);
-        final String hn = (responseData is Map && responseData['hn'] != null) 
-                          ? responseData['hn'].toString() 
-                          : '';
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('เพิ่มข้อมูลผู้ป่วยสำเร็จ ${hn.isNotEmpty ? "(รหัสประจำตัว: $hn)" : ""}'), 
-            backgroundColor: Colors.green
-          ),
-        );
+    if (!mounted) return;
 
-        // ✅ ล้างฟอร์ม ไม่ต้องปิดหน้าต่าง
-        _resetForm();
-
-        // ✅ เรียกใช้งานฟังก์ชันรีเฟรชตารางของหน้าหลัก
-        if (widget.onPatientAdded != null) {
-          widget.onPatientAdded!();
-        }
-
-        return; 
-      } 
-      
-      // --- กรณีบันทึกไม่สำเร็จ (Error จากเซิร์ฟเวอร์) ---
-      else {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-
-        try {
-          final dynamic errorData = jsonDecode(response.body);
-          String errMsg = "เกิดข้อผิดพลาด";
-          if (errorData is Map && errorData['message'] != null) {
-            errMsg = errorData['message'].toString();
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errMsg), backgroundColor: Colors.redAccent),
-          );
-        } catch (_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error ${response.statusCode}: เซิร์ฟเวอร์ขัดข้อง'), backgroundColor: Colors.redAccent),
-          );
-        }
-      }
-
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      
-      if (e.toString().contains('!_debugLocked')) return;
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final dynamic responseData = jsonDecode(response.body);
+      final String hn = (responseData is Map && responseData['hn'] != null)
+          ? responseData['hn'].toString()
+          : '';
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('การเชื่อมต่อมีปัญหา: ${e.toString()}'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(
+            widget.existingPatient != null
+                ? 'บันทึกการแก้ไขสำเร็จ'
+                : 'เพิ่มข้อมูลผู้ป่วยสำเร็จ ${hn.isNotEmpty ? "(HN: $hn)" : ""}',
+          ),
+          backgroundColor: Colors.green,
+        ),
       );
+
+      if (widget.existingPatient != null) {
+        // ✅ แก้ไขสำเร็จ → ปิด Dialog แล้วรีเฟรชตาราง
+        Navigator.of(context).pop(true);
+      } else {
+        // ✅ เพิ่มใหม่สำเร็จ → ล้างฟอร์ม รอกรอกคนถัดไป
+        _resetForm();
+      }
+
+      widget.onPatientAdded?.call();
+
+    } else {
+      setState(() => _isLoading = false);
+      try {
+        final dynamic errorData = jsonDecode(response.body);
+        final String errMsg =
+            (errorData is Map && errorData['message'] != null)
+                ? errorData['message'].toString()
+                : 'เกิดข้อผิดพลาด';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errMsg), backgroundColor: Colors.redAccent),
+        );
+      } catch (_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error ${response.statusCode}: เซิร์ฟเวอร์ขัดข้อง'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
+  } catch (e) {
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    if (e.toString().contains('!_debugLocked')) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('การเชื่อมต่อมีปัญหา: ${e.toString()}'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {

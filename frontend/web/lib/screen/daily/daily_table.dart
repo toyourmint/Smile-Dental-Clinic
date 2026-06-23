@@ -46,7 +46,7 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "ข้อมูลผู้ป่วยประจำวัน", 
+                    "ข้อมูลผู้ป่วยประจำวันนี้", 
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
                   ),
                   const SizedBox(height: 4),

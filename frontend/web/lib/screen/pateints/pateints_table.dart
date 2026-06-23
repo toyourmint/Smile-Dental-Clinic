@@ -43,7 +43,9 @@ class _PatientsScreenState extends State<PatientsScreen> {
         
         // ดึงเอาลิสต์ข้อมูลออกจากคีย์ 'profiles'
         final List<dynamic> data = responseData['profiles'] ?? [];
-        
+        if (data.isNotEmpty) {
+          print('>>> raw json[0] = ${data[0]}');
+          }
         setState(() {
           _patients = data.map((json) {
             String genderTh = "ไม่ระบุ";
@@ -52,6 +54,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
             if (json['gender'] == 'other') genderTh = "อื่นๆ";
 
             return PatientInfo(
+              userId: json['user_id']?.toString() ?? "",
               patientId: json['hn']?.toString() ?? "-",
               idCard: json['citizen_id']?.toString() ?? "-",
               prefix: json['title']?.toString() ?? "",

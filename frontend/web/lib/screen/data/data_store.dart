@@ -28,6 +28,7 @@ class AppointmentModel {
 
 // 2. โมเดลข้อมูลผู้ป่วย (ย้ายมาจาก pateints_table.dart)
 class PatientInfo {
+  String userId;
   String patientId;
   String idCard;
   String prefix;
@@ -52,6 +53,7 @@ class PatientInfo {
   String get fullName => "$prefix $firstName $lastName".trim();
 
   PatientInfo({
+    required this.userId,
     required this.patientId,
     required this.idCard,
     required this.prefix,

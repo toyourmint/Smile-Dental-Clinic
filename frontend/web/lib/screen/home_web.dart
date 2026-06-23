@@ -66,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // เมนูที่ 1: ตารางนัดประจำวัน
                 _buildMenuItem(
                   0,
-                  "ตารางนัดประจำวัน",
+                  "ตารางนัดประจำวันนี้",
                   Icons.format_list_bulleted,
                 ),
 
