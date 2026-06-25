@@ -419,12 +419,12 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               child: Row(children: const [
                 SizedBox(width: 60),
                 Expanded(flex: 3, child: Text("ชื่อผู้ป่วย", style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text("วันที่", style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text("เวลา", style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 3, child: Text("ประเภทการรักษา", style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 2, child: Text("แพทย์", style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 2, child: Text("เบอร์โทรศัพท์", style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 2, child: Text("สถานะ / จัดการ", style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 1, child: Text("วันที่", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                Expanded(flex: 1, child: Text("เวลา", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                Expanded(flex: 3, child: Text("ประเภทการรักษา", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text("แพทย์", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text("เบอร์โทรศัพท์", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text("สถานะ / จัดการ", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
               ]),
             ),
 
@@ -489,12 +489,12 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                                 )
                               ),
                               
-                              Expanded(flex: 1, child: Text(_formatDate(item['appointment_date']))), // 💡 แสดงเป็น พ.ศ.
-                              Expanded(flex: 1, child: Text(_formatTime(item['appointment_time']))),
-                              Expanded(flex: 3, child: Text(item['reason'] ?? "-", style: const TextStyle(color: Colors.black87))),
-                              Expanded(flex: 2, child: Text(doctor, style: const TextStyle(color: Colors.black54))),
-                              Expanded(flex: 2, child: Text(phone, style: const TextStyle(color: Colors.black87))),
-                              
+                              Expanded(flex: 1, child: Text(_formatDate(item['appointment_date']), textAlign: TextAlign.center)), // 💡 แสดงเป็น พ.ศ.
+                              Expanded(flex: 1, child: Text(_formatTime(item['appointment_time']), textAlign: TextAlign.center)),
+                              Expanded(flex: 3, child: Text(item['reason'] ?? "-", style: const TextStyle(color: Colors.black87), textAlign: TextAlign.center)),
+                              Expanded(flex: 2, child: Text(doctor, style: const TextStyle(color: Colors.black54), textAlign: TextAlign.center)),
+                              Expanded(flex: 2, child: Text(phone, style: const TextStyle(color: Colors.black87), textAlign: TextAlign.center)),
+
                               Expanded(
                                 flex: 2,
                                 child: Row(
