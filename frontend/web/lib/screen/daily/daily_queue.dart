@@ -230,34 +230,29 @@ class _DailyQueueScreenState extends State<DailyQueueScreen> {
 
           // ฝั่งขวา: แผงควบคุมคิวห้อง A และ B
           Container(
-            width: 400,
-            color: const Color(0xFFEAF6FF), 
+            width: 320,
+            color: const Color(0xFFF0F4F8),
             child: Column(
               children: [
                 Expanded(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: Colors.white, width: 2))
-                    ),
-                    child: QueueManagerSection(
-                      queueNumber: labelQueueA,
-                      roomNumber: "A", 
-                      currentPatientName: labelNameA,
-                      doctorName: fixedDoctorA, // แสดงชื่อตายตัวที่แผง A
-                      nextQueues: waitingListA, 
-                      onNext: () => _processQueue("A", isSkip: false),
-                      onSkip: () => _processQueue("A", isSkip: true),
-                    ),
+                  child: QueueManagerSection(
+                    queueNumber: labelQueueA,
+                    roomNumber: "A",
+                    currentPatientName: labelNameA,
+                    doctorName: fixedDoctorA,
+                    nextQueues: waitingListA,
+                    onNext: () => _processQueue("A", isSkip: false),
+                    onSkip: () => _processQueue("A", isSkip: true),
                   ),
                 ),
-                
+                const Divider(height: 1, color: Colors.black12),
                 Expanded(
                   child: QueueManagerSection(
                     queueNumber: labelQueueB,
-                    roomNumber: "B", 
+                    roomNumber: "B",
                     currentPatientName: labelNameB,
-                    doctorName: fixedDoctorB, // แสดงชื่อตายตัวที่แผง B
-                    nextQueues: waitingListB, 
+                    doctorName: fixedDoctorB,
+                    nextQueues: waitingListB,
                     onNext: () => _processQueue("B", isSkip: false),
                     onSkip: () => _processQueue("B", isSkip: true),
                   ),

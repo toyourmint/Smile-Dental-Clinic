@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-// 💡 อย่าลืมเช็ค path ของไฟล์ add_pateint.dart และ data_store.dart ให้ตรงกับโปรเจกต์ของคุณนะครับ
 import 'package:flutter_application_1/screen/pateints/add_pateint.dart';
 import 'package:flutter_application_1/screen/data/data_store.dart';
 
@@ -31,21 +30,17 @@ class _PatientsScreenState extends State<PatientsScreen> {
     super.dispose();
   }
 
-  // 💡 ฟังก์ชันดึงข้อมูลที่แก้ให้อ่าน { "profiles": [...] } แล้ว
   Future<void> _fetchPatients() async {
     setState(() => _isLoading = true);
     try {
       final response = await http.get(Uri.parse('http://localhost:3000/api/user/getallprofiles'));
       
       if (response.statusCode == 200) {
-        // แปลงเป็น Map ก่อน เพราะ Backend ส่งมาเป็น { "profiles": [...] }
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        
-        // ดึงเอาลิสต์ข้อมูลออกจากคีย์ 'profiles'
         final List<dynamic> data = responseData['profiles'] ?? [];
         if (data.isNotEmpty) {
           print('>>> raw json[0] = ${data[0]}');
-          }
+        }
         setState(() {
           _patients = data.map((json) {
             String genderTh = "ไม่ระบุ";
@@ -60,7 +55,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
               prefix: json['title']?.toString() ?? "",
               firstName: json['first_name']?.toString() ?? "ไม่ระบุ",
               lastName: json['last_name']?.toString() ?? "",
-              birthDate: json['birth_date']?.toString().split('T')[0] ?? "-", 
+              birthDate: json['birth_date']?.toString().split('T')[0] ?? "-",
               gender: genderTh,
               phone: json['phone']?.toString() ?? "-",
               email: json['email']?.toString() ?? "-",
@@ -101,9 +96,9 @@ class _PatientsScreenState extends State<PatientsScreen> {
     final result = await showDialog(
       context: context,
       builder: (context) => AddPatientDialog(
-        generatedId: null, 
+        generatedId: null,
         onPatientAdded: () {
-          _fetchPatients(); 
+          _fetchPatients();
         },
       ),
     );
@@ -117,7 +112,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
     final result = await showDialog(
       context: context,
       builder: (context) => AddPatientDialog(
-        existingPatient: patient, 
+        existingPatient: patient,
         onPatientAdded: () {
           _fetchPatients();
         },
@@ -125,7 +120,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
     );
 
     if (result == "success" || result == true) {
-      _fetchPatients(); 
+      _fetchPatients();
     }
   }
 
@@ -168,7 +163,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
   Widget build(BuildContext context) {
     List<PatientInfo> filteredPatients = _patients.where((item) {
       if (_searchQuery.isEmpty) return true;
-      
       final searchLower = _searchQuery.toLowerCase();
       return item.fullName.toLowerCase().contains(searchLower) ||
              item.patientId.toLowerCase().contains(searchLower) ||
@@ -177,20 +171,21 @@ class _PatientsScreenState extends State<PatientsScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7FB),
       body: Padding(
         padding: const EdgeInsets.all(30.0),
         child: Column(
           children: [
+            // --- Header ---
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("ข้อมูลผู้ป่วย", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text("ข้อมูลผู้ป่วย", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Container(height: 3, width: 80, color: const Color(0xFF2196F3)),
+                    Container(height: 3, width: 100, color: const Color(0xFF2196F3)),
                   ],
                 ),
                 ElevatedButton.icon(
@@ -207,55 +202,63 @@ class _PatientsScreenState extends State<PatientsScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                width: 300, height: 40,
-                decoration: BoxDecoration(color: const Color(0xFFEDF2F7), borderRadius: BorderRadius.circular(20)),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) {
-                    setState(() { _searchQuery = value; });
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'ค้นหาชื่อ, รหัสผู้ป่วย, เบอร์...', 
-                    prefixIcon: const Icon(Icons.search, color: Colors.grey), 
-                    border: InputBorder.none, 
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                    suffixIcon: _searchQuery.isNotEmpty 
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 16, color: Colors.grey),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() { _searchQuery = ""; });
-                          },
-                        )
-                      : null,
+
+            // --- Search Bar ---
+            Row(
+              children: [
+                Container(
+                  width: 300, height: 45,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(color: Colors.blue, width: 1.5),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() { _searchQuery = value; });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'ค้นหาชื่อ, รหัสผู้ป่วย, เบอร์...',
+                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() { _searchQuery = ""; });
+                            },
+                          )
+                        : null,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
             const SizedBox(height: 30),
 
+            // --- Table Header ---
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.black12))),
               child: Row(children: const [
-                SizedBox(width: 60), 
-                Expanded(flex: 3, child: Text("ชื่อผู้ป่วย", style: TextStyle(fontWeight: FontWeight.bold))), 
-                Expanded(flex: 3, child: Text("เลขบัตรประชาชน", style: TextStyle(fontWeight: FontWeight.bold))), 
-                Expanded(flex: 1, child: Text("เพศ", style: TextStyle(fontWeight: FontWeight.bold))), 
-                Expanded(flex: 2, child: Text("เบอร์โทรศัพท์", style: TextStyle(fontWeight: FontWeight.bold))), 
-                Expanded(flex: 3, child: Text("อีเมล", style: TextStyle(fontWeight: FontWeight.bold))), 
-                SizedBox(width: 80) 
+                SizedBox(width: 60),
+                Expanded(flex: 3, child: Text("ชื่อผู้ป่วย", style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 3, child: Text("เลขบัตรประชาชน", style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 1, child: Text("เพศ", style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 2, child: Text("เบอร์โทรศัพท์", style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(flex: 3, child: Text("อีเมล", style: TextStyle(fontWeight: FontWeight.bold))),
+                SizedBox(width: 80),
               ]),
             ),
 
+            // --- Table Body ---
             Expanded(
               child: _isLoading
-                ? const Center(child: CircularProgressIndicator()) 
-                : filteredPatients.isEmpty 
+                ? const Center(child: CircularProgressIndicator())
+                : filteredPatients.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -263,8 +266,8 @@ class _PatientsScreenState extends State<PatientsScreen> {
                           Icon(Icons.folder_open, size: 48, color: Colors.grey.shade300),
                           const SizedBox(height: 10),
                           Text(
-                            _patients.isEmpty ? "ยังไม่มีข้อมูลผู้ป่วยในระบบ" : "ไม่พบข้อมูลที่ค้นหา", 
-                            style: TextStyle(color: Colors.grey.shade400, fontSize: 16)
+                            _patients.isEmpty ? "ยังไม่มีข้อมูลผู้ป่วยในระบบ" : "ไม่พบข้อมูลที่ค้นหา",
+                            style: TextStyle(color: Colors.grey.shade400, fontSize: 16),
                           ),
                         ],
                       ),
@@ -274,8 +277,8 @@ class _PatientsScreenState extends State<PatientsScreen> {
                       separatorBuilder: (c, i) => const Divider(height: 1, color: Colors.black12),
                       itemBuilder: (context, index) {
                         final item = filteredPatients[index];
-
                         return Container(
+                          color: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
                           child: Row(
                             children: [
@@ -284,24 +287,21 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                 child: Text(item.firstName.isNotEmpty ? item.firstName[0] : "?", style: TextStyle(color: Colors.blue.shade900)),
                               ),
                               const SizedBox(width: 20),
-                              
                               Expanded(flex: 3, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Text(item.fullName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                                 const SizedBox(height: 4),
                                 Text(item.patientId, style: const TextStyle(fontSize: 11, color: Color(0xFF1976D2), fontWeight: FontWeight.w600)),
                               ])),
-                              
                               Expanded(flex: 3, child: Text(item.idCard, style: const TextStyle(fontSize: 13, color: Colors.black87))),
                               Expanded(flex: 1, child: Text(item.gender, style: const TextStyle(fontSize: 13, color: Colors.black87))),
                               Expanded(flex: 2, child: Text(item.phone, style: const TextStyle(fontSize: 13, color: Colors.black87))),
                               Expanded(flex: 3, child: Text(item.email, style: const TextStyle(fontSize: 13, color: Colors.black87))),
-                              
                               SizedBox(
-                                width: 80, 
+                                width: 80,
                                 child: Row(
                                   children: [
                                     InkWell(
-                                      onTap: () => _openViewEditDialog(item), 
+                                      onTap: () => _openViewEditDialog(item),
                                       child: Container(
                                         width: 30, height: 30,
                                         decoration: BoxDecoration(color: const Color(0xFF64B5F6), borderRadius: BorderRadius.circular(6)),
@@ -310,7 +310,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                     ),
                                     const SizedBox(width: 8),
                                     InkWell(
-                                      onTap: () => _confirmDelete(item), 
+                                      onTap: () => _confirmDelete(item),
                                       child: Container(
                                         width: 30, height: 30,
                                         decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(6)),

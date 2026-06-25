@@ -269,7 +269,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   children: [
                     const Text("ข้อมูลการนัดหมายผู้ป่วย", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Container(height: 3, width: 100, color: const Color(0xFF2196F3)),
+                    Container(height: 3, width: 60, color: const Color(0xFF2196F3)),
                   ],
                 ),
                 ElevatedButton.icon(
@@ -292,30 +292,34 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               children: [
                 Container(
                   width: 300, height: 45,
-                  decoration: BoxDecoration(color: const Color(0xFFEDF2F7), borderRadius: BorderRadius.circular(25)),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(color: Colors.blue, width: 1.5),
+                  ),
                   child: TextField(
                     controller: _searchController,
                     onChanged: (val) => setState(() => _searchQuery = val),
                     decoration: InputDecoration(
-                      hintText: 'ค้นหาชื่อ, รหัสผู้ป่วย, เบอร์โทร', 
-                      prefixIcon: const Icon(Icons.search, color: Colors.grey), 
+                      hintText: 'ค้นหาชื่อ, รหัสผู้ป่วย, เบอร์โทร',
+                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      suffixIcon: _searchQuery.isNotEmpty 
+                      suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18, color: Colors.grey), 
-                            onPressed: () { 
-                              _searchController.clear(); 
-                              setState(() => _searchQuery = ""); 
+                            icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = "");
                             }
-                          ) 
+                          )
                         : null,
                     ),
                   ),
                 ),
                 const SizedBox(width: 20),
-                
-                // 💡 ปุ่ม Filter เปลี่ยนปีเป็น พ.ศ. โดย +543
+
+                // Filter by Date
                 InkWell(
                   onTap: () => _selectDate(context),
                   borderRadius: BorderRadius.circular(25),
@@ -326,8 +330,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(25),
                       border: Border.all(
-                        color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700, 
-                        width: 1.5
+                        color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700,
+                        width: 1.5,
                       ),
                     ),
                     alignment: Alignment.center,
@@ -337,13 +341,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                         Icon(Icons.calendar_today_outlined, size: 16, color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700),
                         const SizedBox(width: 8),
                         Text(
-                          _selectedFilterDate == null 
-                            ? "Filter by Date" 
-                            : "${_selectedFilterDate!.day.toString().padLeft(2, '0')}/${_selectedFilterDate!.month.toString().padLeft(2, '0')}/${_selectedFilterDate!.year + 543}", // +543 ตรงนี้
+                          _selectedFilterDate == null
+                            ? "Filter by Date"
+                            : "${_selectedFilterDate!.day.toString().padLeft(2, '0')}/${_selectedFilterDate!.month.toString().padLeft(2, '0')}/${_selectedFilterDate!.year + 543}",
                           style: TextStyle(
                             color: _selectedFilterDate == null ? Colors.grey.shade700 : Colors.blue.shade800,
-                            fontWeight: _selectedFilterDate == null ? FontWeight.normal : FontWeight.bold
-                          )
+                            fontWeight: _selectedFilterDate == null ? FontWeight.normal : FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -353,17 +357,16 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   const SizedBox(width: 10),
                   InkWell(
                     onTap: () => setState(() => _selectedFilterDate = null),
-                    child: const Icon(Icons.cancel, size: 18, color: Colors.redAccent)
-                  )
+                    child: const Icon(Icons.cancel, size: 18, color: Colors.redAccent),
+                  ),
                 ],
 
                 const SizedBox(width: 20),
 
+                // Filter by Status
                 PopupMenuButton<String>(
                   onSelected: (String value) {
-                    setState(() {
-                      _selectedStatusFilter = value;
-                    });
+                    setState(() { _selectedStatusFilter = value; });
                   },
                   offset: const Offset(0, 50),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -382,8 +385,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(25),
                       border: Border.all(
-                        color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.blue : Colors.blue.shade700, 
-                        width: 1.5
+                        color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.blue : Colors.blue.shade700,
+                        width: 1.5,
                       ),
                     ),
                     alignment: Alignment.center,
@@ -396,8 +399,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                           "สถานะ: $_selectedStatusFilter",
                           style: TextStyle(
                             color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.grey.shade700 : Colors.blue.shade800,
-                            fontWeight: _selectedStatusFilter == 'ทั้งหมด' ? FontWeight.normal : FontWeight.bold
-                          )
+                            fontWeight: _selectedStatusFilter == 'ทั้งหมด' ? FontWeight.normal : FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey.shade500),
@@ -405,7 +408,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     ),
                   ),
                 ),
-
               ],
             ),
             const SizedBox(height: 30),

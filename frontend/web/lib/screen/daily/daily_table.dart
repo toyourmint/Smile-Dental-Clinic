@@ -39,55 +39,67 @@ class _DailyPatientTableState extends State<DailyPatientTable> {
       padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
-          // --- ส่วนหัว (Header) ---
+          // --- Header ---
           Row(
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "ข้อมูลผู้ป่วยประจำวันนี้", 
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
+                    "ข้อมูลผู้ป่วยประจำวันนี้",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 4),
-                  Container(height: 3, width: 40, color: const Color(0xFF0062E0)),
+                  const SizedBox(height: 8),
+                  Container(height: 3, width: 40, color: const Color(0xFF2196F3)),
                 ],
               ),
               const Spacer(),
-              
-              // --- 2. ปุ่ม Filter (แบบ Dropdown Menu) ---
-              Material(
-                color: Colors.white, 
-                elevation: 2, 
-                borderRadius: BorderRadius.circular(20),
-                child: PopupMenuButton<String>(
-                  onSelected: (String value) {
-                    setState(() {
-                      _selectedFilter = value; // อัปเดตสถานะที่เลือก
-                    });
-                  },
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  offset: const Offset(0, 45), // เด้งเมนูลงมาด้านล่าง
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                    const PopupMenuItem<String>(value: "ทั้งหมด", child: Text("ทั้งหมด")),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem<String>(value: "ยังไม่มา", child: Text("ยังไม่มา (Confirmed)")),
-                    const PopupMenuItem<String>(value: "รอเรียกคิว", child: Text("รอเรียกคิว (Waiting)")),
-                    const PopupMenuItem<String>(value: "กำลังตรวจ", child: Text("กำลังตรวจ (In Queue)")),
-                    const PopupMenuItem<String>(value: "เสร็จสิ้น", child: Text("เสร็จสิ้น (Done)")),
-                    const PopupMenuItem<String>(value: "ข้าม", child: Text("ข้าม / ยกเลิก")),
-                  ],
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.filter_list, size: 16, color: Colors.blue), 
-                        const SizedBox(width: 8), 
-                        Text("สถานะ: $_selectedFilter", style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
-                        const SizedBox(width: 4), 
-                        const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey),
-                      ],
+
+              // --- Filter Dropdown ---
+              PopupMenuButton<String>(
+                onSelected: (String value) {
+                  setState(() {
+                    _selectedFilter = value;
+                  });
+                },
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                offset: const Offset(0, 50),
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(value: "ทั้งหมด", child: Text("ทั้งหมด")),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<String>(value: "ยังไม่มา", child: Text("ยังไม่มา (Confirmed)")),
+                  const PopupMenuItem<String>(value: "รอเรียกคิว", child: Text("รอเรียกคิว (Waiting)")),
+                  const PopupMenuItem<String>(value: "กำลังตรวจ", child: Text("กำลังตรวจ (In Queue)")),
+                  const PopupMenuItem<String>(value: "เสร็จสิ้น", child: Text("เสร็จสิ้น (Done)")),
+                  const PopupMenuItem<String>(value: "ข้าม", child: Text("ข้าม / ยกเลิก")),
+                ],
+                child: Container(
+                  height: 45,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(
+                      color: _selectedFilter == "ทั้งหมด" ? Colors.blue : Colors.blue.shade700,
+                      width: 1.5,
                     ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.filter_alt_outlined, size: 16, color: _selectedFilter == "ทั้งหมด" ? Colors.blue : Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        "สถานะ: $_selectedFilter",
+                        style: TextStyle(
+                          color: _selectedFilter == "ทั้งหมด" ? Colors.grey.shade700 : Colors.blue.shade800,
+                          fontWeight: _selectedFilter == "ทั้งหมด" ? FontWeight.normal : FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey.shade500),
+                    ],
                   ),
                 ),
               ),
