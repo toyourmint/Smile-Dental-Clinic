@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart'; 
-import 'package:flutter_application_1/screen/appomitment/edit_appointment.dart'; 
-import 'package:flutter_application_1/screen/appomitment/add_appointment.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/screen/appomitment/edit_appointment.dart';
+import 'package:flutter_application_1/screen/appomitment/add_appointment.dart';
+import 'package:flutter_application_1/screen/data/table_styles.dart'; // ← เพิ่ม import
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({super.key});
@@ -17,7 +17,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   DateTime? _selectedFilterDate;
-  
   String _selectedStatusFilter = 'ทั้งหมด';
 
   List<dynamic> _appointments = [];
@@ -45,37 +44,26 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         Uri.parse('http://localhost:3000/api/apm/all'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${myToken ?? ""}', 
-        }
+          'Authorization': 'Bearer ${myToken ?? ""}',
+        },
       );
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (mounted) {
-          setState(() {
-            _appointments = data['appointments'] ?? [];
-          });
-        }
+        if (mounted) setState(() { _appointments = data['appointments'] ?? []; });
       } else if (response.statusCode == 401 || response.statusCode == 403) {
-         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(content: Text("ไม่มีสิทธิ์เข้าถึง หรือเซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่"), backgroundColor: Colors.orange)
-           );
-         }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("ไม่มีสิทธิ์เข้าถึง หรือเซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่"),
+            backgroundColor: Colors.orange));
       } else {
-         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(content: Text("ดึงข้อมูลล้มเหลว (${response.statusCode})"), backgroundColor: Colors.red)
-           );
-         }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("ดึงข้อมูลล้มเหลว (${response.statusCode})"),
+            backgroundColor: Colors.red));
       }
     } catch (e) {
       debugPrint("Error fetching appointments: $e");
-      if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"), backgroundColor: Colors.red)
-         );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -87,18 +75,12 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       initialDate: _selectedFilterDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Colors.blue, 
-              onPrimary: Colors.white, 
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: Colors.blue, onPrimary: Colors.white, onSurface: Colors.black),
+        ),
+        child: child!,
+      ),
     );
     if (picked != null && picked != _selectedFilterDate) {
       setState(() => _selectedFilterDate = picked);
@@ -106,18 +88,12 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   }
 
   void _openAddDialog() async {
-    final result = await showDialog(
-      context: context,
-      builder: (context) => const AddAppointmentDialog(),
-    );
+    final result = await showDialog(context: context, builder: (context) => const AddAppointmentDialog());
     if (result == "success") _fetchAppointments();
   }
 
   void _openEditDialog(Map<String, dynamic> item) async {
-    final result = await showDialog(
-      context: context,
-      builder: (context) => EditAppointmentDialog(initialData: item),
-    );
+    final result = await showDialog(context: context, builder: (context) => EditAppointmentDialog(initialData: item));
     if (result == "success") _fetchAppointments();
   }
 
@@ -129,48 +105,36 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: const [
-              Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
-              SizedBox(width: 10),
-              Text("ยืนยันการยกเลิก", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-            ],
-          ),
+          title: Row(children: const [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 10),
+            Text("ยืนยันการยกเลิก", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+          ]),
           content: Text("คุณต้องการยกเลิกนัดหมายรหัส ${item['hn']} ใช่หรือไม่?"),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context), 
-              child: const Text("ปิด", style: TextStyle(color: Colors.grey))
-            ),
+            TextButton(onPressed: () => Navigator.pop(context),
+                child: const Text("ปิด", style: TextStyle(color: Colors.grey))),
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context);
                 try {
                   SharedPreferences prefs = await SharedPreferences.getInstance();
                   String? myToken = prefs.getString('my_token');
-
                   final response = await http.put(
                     Uri.parse('http://localhost:3000/api/apm/cancel/${item['apt_id']}'),
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': 'Bearer ${myToken ?? ""}', 
-                    }
+                    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${myToken ?? ""}'},
                   );
-                  
                   if (response.statusCode == 200) {
-                    _fetchAppointments(); 
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ยกเลิกสำเร็จ"), backgroundColor: Colors.green));
-                    }
+                    _fetchAppointments();
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("ยกเลิกสำเร็จ"), backgroundColor: Colors.green));
                   } else {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ยกเลิกไม่สำเร็จ"), backgroundColor: Colors.red));
-                    }
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("ยกเลิกไม่สำเร็จ"), backgroundColor: Colors.red));
                   }
                 } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("เกิดข้อผิดพลาดในการเชื่อมต่อ"), backgroundColor: Colors.red));
-                  }
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("เกิดข้อผิดพลาดในการเชื่อมต่อ"), backgroundColor: Colors.red));
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -182,20 +146,19 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     );
   }
 
-  // 💡 แก้ไขฟังก์ชันนี้ให้แปลงเป็น พ.ศ. (+543)
   String _formatDate(String isoString) {
     try {
       DateTime dt = DateTime.parse(isoString);
-      int thaiYear = dt.year + 543; // บวก 543 เป็น พ.ศ.
-      return "${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/$thaiYear";
-    } catch(e) { 
-      return isoString; 
+      int thaiYear = dt.year + 543;
+      return "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/$thaiYear";
+    } catch (e) {
+      return isoString;
     }
   }
 
   String _formatTime(String time) {
-    if(time.startsWith('09')) return '9.00 น.';
-    return '${time.substring(0,2)}.00 น.';
+    if (time.startsWith('09')) return '9.00 น.';
+    return '${time.substring(0, 2)}.00 น.';
   }
 
   @override
@@ -212,7 +175,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         String searchLower = _searchQuery.toLowerCase();
         matchesSearch = hn.contains(searchLower) || name.contains(searchLower) || phone.contains(searchLower);
       }
-      
+
       bool matchesDate = true;
       String dateStr = (item['appointment_date'] ?? "").split('T')[0];
       DateTime? itemDate;
@@ -225,32 +188,24 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
       if (_selectedFilterDate != null) {
         if (itemDate != null) {
-           matchesDate = itemDate.isAtSameMomentAs(
-             DateTime(_selectedFilterDate!.year, _selectedFilterDate!.month, _selectedFilterDate!.day)
-           );
+          matchesDate = itemDate.isAtSameMomentAs(
+              DateTime(_selectedFilterDate!.year, _selectedFilterDate!.month, _selectedFilterDate!.day));
         } else {
-           matchesDate = false;
+          matchesDate = false;
         }
       } else {
         if (itemDate != null) {
-           if (itemDate.isBefore(today)) {
-             matchesDate = false; 
-           }
+          if (itemDate.isBefore(today)) matchesDate = false;
         }
       }
 
       bool matchesStatus = true;
       String rawStatus = item['status'] ?? "booking";
-      if (_selectedStatusFilter == 'จองแล้ว') {
-        matchesStatus = rawStatus == 'booking';
-      } else if (_selectedStatusFilter == 'รับคิวแล้ว') {
-        matchesStatus = rawStatus == 'arrived';
-      } else if (_selectedStatusFilter == 'เสร็จสิ้น') {
-        matchesStatus = rawStatus == 'completed';
-      } else if (_selectedStatusFilter == 'ยกเลิก') {
-        matchesStatus = rawStatus == 'cancelled';
-      }
-      
+      if (_selectedStatusFilter == 'จองแล้ว') matchesStatus = rawStatus == 'booking';
+      else if (_selectedStatusFilter == 'รับคิวแล้ว') matchesStatus = rawStatus == 'arrived';
+      else if (_selectedStatusFilter == 'เสร็จสิ้น') matchesStatus = rawStatus == 'completed';
+      else if (_selectedStatusFilter == 'ยกเลิก') matchesStatus = rawStatus == 'cancelled';
+
       return matchesSearch && matchesDate && matchesStatus;
     }).toList();
 
@@ -264,21 +219,18 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("ข้อมูลการนัดหมายผู้ป่วย", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Container(height: 3, width: 60, color: const Color(0xFF2196F3)),
-                  ],
-                ),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text("ข้อมูลการนัดหมายผู้ป่วย",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Container(height: 3, width: 60, color: const Color(0xFF2196F3)),
+                ]),
                 ElevatedButton.icon(
                   onPressed: _openAddDialog,
-                  icon: const Icon(Icons.add, size: 18), 
+                  icon: const Icon(Icons.add, size: 18),
                   label: const Text("เพิ่มการนัดหมาย"),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2196F3), 
-                    foregroundColor: Colors.white,
+                    backgroundColor: const Color(0xFF2196F3), foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
@@ -286,17 +238,15 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            
+
             // --- Search & Filter ---
             Row(
               children: [
                 Container(
                   width: 300, height: 45,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(25),
-                    border: Border.all(color: Colors.blue, width: 1.5),
-                  ),
+                  decoration: BoxDecoration(color: Colors.white,
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.blue, width: 1.5)),
                   child: TextField(
                     controller: _searchController,
                     onChanged: (val) => setState(() => _searchQuery = val),
@@ -306,68 +256,49 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 10),
                       suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = "");
-                            }
-                          )
-                        : null,
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
+                              onPressed: () { _searchController.clear(); setState(() => _searchQuery = ""); })
+                          : null,
                     ),
                   ),
                 ),
                 const SizedBox(width: 20),
-
-                // Filter by Date
                 InkWell(
                   onTap: () => _selectDate(context),
                   borderRadius: BorderRadius.circular(25),
                   child: Container(
-                    height: 45,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(
-                        color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700,
-                        width: 1.5,
-                      ),
-                    ),
+                    height: 45, padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(
+                            color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700, width: 1.5)),
                     alignment: Alignment.center,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.calendar_today_outlined, size: 16, color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700),
-                        const SizedBox(width: 8),
-                        Text(
-                          _selectedFilterDate == null
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.calendar_today_outlined, size: 16,
+                          color: _selectedFilterDate == null ? Colors.blue : Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        _selectedFilterDate == null
                             ? "Filter by Date"
                             : "${_selectedFilterDate!.day.toString().padLeft(2, '0')}/${_selectedFilterDate!.month.toString().padLeft(2, '0')}/${_selectedFilterDate!.year + 543}",
-                          style: TextStyle(
-                            color: _selectedFilterDate == null ? Colors.grey.shade700 : Colors.blue.shade800,
-                            fontWeight: _selectedFilterDate == null ? FontWeight.normal : FontWeight.bold,
-                          ),
+                        style: TextStyle(
+                          color: _selectedFilterDate == null ? Colors.grey.shade700 : Colors.blue.shade800,
+                          fontWeight: _selectedFilterDate == null ? FontWeight.normal : FontWeight.bold,
                         ),
-                      ],
-                    ),
+                      ),
+                    ]),
                   ),
                 ),
                 if (_selectedFilterDate != null) ...[
                   const SizedBox(width: 10),
                   InkWell(
-                    onTap: () => setState(() => _selectedFilterDate = null),
-                    child: const Icon(Icons.cancel, size: 18, color: Colors.redAccent),
-                  ),
+                      onTap: () => setState(() => _selectedFilterDate = null),
+                      child: const Icon(Icons.cancel, size: 18, color: Colors.redAccent)),
                 ],
-
                 const SizedBox(width: 20),
-
-                // Filter by Status
                 PopupMenuButton<String>(
-                  onSelected: (String value) {
-                    setState(() { _selectedStatusFilter = value; });
-                  },
+                  onSelected: (String value) => setState(() { _selectedStatusFilter = value; }),
                   offset: const Offset(0, 50),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -379,167 +310,157 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     const PopupMenuItem<String>(value: 'ยกเลิก', child: Text('🔴 ยกเลิก (Cancelled)')),
                   ],
                   child: Container(
-                    height: 45,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(
-                        color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.blue : Colors.blue.shade700,
-                        width: 1.5,
-                      ),
-                    ),
+                    height: 45, padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(
+                            color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.blue : Colors.blue.shade700,
+                            width: 1.5)),
                     alignment: Alignment.center,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.filter_alt_outlined, size: 16, color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.blue : Colors.blue.shade700),
-                        const SizedBox(width: 8),
-                        Text(
-                          "สถานะ: $_selectedStatusFilter",
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.filter_alt_outlined, size: 16,
+                          color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.blue : Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Text("สถานะ: $_selectedStatusFilter",
                           style: TextStyle(
                             color: _selectedStatusFilter == 'ทั้งหมด' ? Colors.grey.shade700 : Colors.blue.shade800,
                             fontWeight: _selectedStatusFilter == 'ทั้งหมด' ? FontWeight.normal : FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey.shade500),
-                      ],
-                    ),
+                          )),
+                      const SizedBox(width: 8),
+                      Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey.shade500),
+                    ]),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 30),
 
-            // --- Table Header ---
+            // --- Table Header ──────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10), 
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.black12))),
-              child: Row(children: const [
-                SizedBox(width: 60),
-                Expanded(flex: 3, child: Text("ชื่อผู้ป่วย", style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text("วันที่", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                Expanded(flex: 1, child: Text("เวลา", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                Expanded(flex: 3, child: Text("ประเภทการรักษา", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                Expanded(flex: 2, child: Text("แพทย์", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                Expanded(flex: 2, child: Text("เบอร์โทรศัพท์", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                Expanded(flex: 2, child: Text("สถานะ / จัดการ", style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+              child: Row(children: [
+                const SizedBox(width: 60),
+                Expanded(flex: 3, child: Text("ชื่อผู้ป่วย",           style: TableStyles.columnHeader)),
+                Expanded(flex: 1, child: Text("วันที่",                style: TableStyles.columnHeader, textAlign: TextAlign.center)),
+                Expanded(flex: 1, child: Text("เวลา",                  style: TableStyles.columnHeader, textAlign: TextAlign.center)),
+                Expanded(flex: 3, child: Text("ประเภทการรักษา",         style: TableStyles.columnHeader, textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text("แพทย์",                 style: TableStyles.columnHeader, textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text("เบอร์โทรศัพท์",         style: TableStyles.columnHeader, textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text("สถานะ / จัดการ",        style: TableStyles.columnHeader, textAlign: TextAlign.center)),
               ]),
             ),
 
-            // --- Table Body ---
+            // --- Table Body ───────────────────────────────────────────
             Expanded(
-              child: _isLoading 
-                ? const Center(child: CircularProgressIndicator())
-                : filteredAppointments.isEmpty 
-                  ? const Center(child: Text("ไม่พบข้อมูลการนัดหมาย", style: TextStyle(color: Colors.grey, fontSize: 16)))
-                  : ListView.separated(
-                      itemCount: filteredAppointments.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.black12),
-                      itemBuilder: (context, index) {
-                        final item = filteredAppointments[index];
-                        
-                        String rawStatus = item['status'] ?? "booking";
-                        Color statusColor;
-                        String statusText;
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredAppointments.isEmpty
+                      ? const Center(child: Text("ไม่พบข้อมูลการนัดหมาย",
+                            style: TextStyle(color: Colors.grey, fontSize: 16)))
+                      : ListView.separated(
+                          itemCount: filteredAppointments.length,
+                          separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.black12),
+                          itemBuilder: (context, index) {
+                            final item = filteredAppointments[index];
 
-                        if (rawStatus == 'cancelled') {
-                          statusColor = Colors.red;
-                          statusText = "ยกเลิก";
-                        } else if (rawStatus == 'completed') {
-                          statusColor = Colors.green; 
-                          statusText = "เสร็จสิ้น"; 
-                        } else if (rawStatus == 'arrived') {
-                          statusColor = Colors.orange;
-                          statusText = "รับคิวแล้ว";
-                        } else {
-                          statusColor = const Color(0xFF42A5F5); 
-                          statusText = (rawStatus == 'booking') ? "จองแล้ว" : rawStatus;
-                        }
-                        
-                        String titleStr = item['title'] != null && item['title'] != 'null' ? item['title'] : "";
-                        String fullName = "$titleStr${titleStr.isNotEmpty ? ' ' : ''}${item['first_name']} ${item['last_name']}".trim();
-                        String hn = item['hn'] ?? "-";
-                        String initialChar = (item['first_name'] != null && item['first_name'].isNotEmpty) ? item['first_name'][0] : "?";
-                        String doctor = item['doctor_name'] ?? "-"; 
-                        String phone = item['phone'] ?? "-";
+                            String rawStatus = item['status'] ?? "booking";
+                            Color statusColor;
+                            String statusText;
 
-                        return Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-                          color: Colors.white,
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 20, 
-                                backgroundColor: Colors.blue.shade100, 
-                                child: Text(initialChar, style: TextStyle(color: Colors.blue.shade900))
-                              ),
-                              const SizedBox(width: 20),
-                              
-                              Expanded(
-                                flex: 3, 
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start, 
-                                  children: [
-                                    Text(fullName, style: const TextStyle(fontWeight: FontWeight.w500)),
-                                    const SizedBox(height: 4),
-                                    Text(hn, style: TextStyle(color: Colors.blue.shade700, fontSize: 11, fontWeight: FontWeight.bold))
-                                  ]
-                                )
-                              ),
-                              
-                              Expanded(flex: 1, child: Text(_formatDate(item['appointment_date']), textAlign: TextAlign.center)), // 💡 แสดงเป็น พ.ศ.
-                              Expanded(flex: 1, child: Text(_formatTime(item['appointment_time']), textAlign: TextAlign.center)),
-                              Expanded(flex: 3, child: Text(item['reason'] ?? "-", style: const TextStyle(color: Colors.black87), textAlign: TextAlign.center)),
-                              Expanded(flex: 2, child: Text(doctor, style: const TextStyle(color: Colors.black54), textAlign: TextAlign.center)),
-                              Expanded(flex: 2, child: Text(phone, style: const TextStyle(color: Colors.black87), textAlign: TextAlign.center)),
+                            if (rawStatus == 'cancelled') {
+                              statusColor = Colors.red; statusText = "ยกเลิก";
+                            } else if (rawStatus == 'completed') {
+                              statusColor = Colors.green; statusText = "เสร็จสิ้น";
+                            } else if (rawStatus == 'arrived') {
+                              statusColor = Colors.orange; statusText = "รับคิวแล้ว";
+                            } else {
+                              statusColor = const Color(0xFF42A5F5);
+                              statusText = (rawStatus == 'booking') ? "จองแล้ว" : rawStatus;
+                            }
 
-                              Expanded(
-                                flex: 2,
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                      decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(20)),
-                                      child: Text(statusText, style: const TextStyle(color: Colors.white, fontSize: 12)),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    
-                                    if (rawStatus != 'cancelled' && rawStatus != 'completed' && rawStatus != 'arrived') ...[
-                                      InkWell(
-                                        onTap: () => _openEditDialog(item),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4), 
-                                          decoration: BoxDecoration(border: Border.all(color: Colors.black87), borderRadius: BorderRadius.circular(4)), 
-                                          child: const Icon(Icons.edit, size: 16, color: Colors.black87)
-                                        )
+                            String titleStr = item['title'] != null && item['title'] != 'null' ? item['title'] : "";
+                            String fullName = "$titleStr${titleStr.isNotEmpty ? ' ' : ''}${item['first_name']} ${item['last_name']}".trim();
+                            String hn = item['hn'] ?? "-";
+                            String initialChar = (item['first_name'] != null && item['first_name'].isNotEmpty)
+                                ? item['first_name'][0] : "?";
+                            String doctor = item['doctor_name'] ?? "-";
+                            String phone = item['phone'] ?? "-";
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+                              color: Colors.white,
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: TableStyles.avatarRadius,
+                                    backgroundColor: Colors.blue.shade100,
+                                    child: Text(initialChar, style: TextStyle(color: Colors.blue.shade900)),
+                                  ),
+                                  const SizedBox(width: 20),
+
+                                  Expanded(
+                                    flex: 3,
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(fullName, style: TableStyles.patientName),
+                                      const SizedBox(height: 4),
+                                      Text(hn, style: TableStyles.patientHn),
+                                    ]),
+                                  ),
+
+                                  Expanded(flex: 1, child: Text(_formatDate(item['appointment_date']),
+                                      style: TableStyles.cellBody, textAlign: TextAlign.center)),
+                                  Expanded(flex: 1, child: Text(_formatTime(item['appointment_time']),
+                                      style: TableStyles.cellBody, textAlign: TextAlign.center)),
+                                  Expanded(flex: 3, child: Text(item['reason'] ?? "-",
+                                      style: TableStyles.cellMuted, textAlign: TextAlign.center)),
+                                  Expanded(flex: 2, child: Text(doctor,
+                                      style: TableStyles.cellMuted, textAlign: TextAlign.center)),
+                                  Expanded(flex: 2, child: Text(phone,
+                                      style: TableStyles.cellBody, textAlign: TextAlign.center)),
+
+                                  Expanded(
+                                    flex: 2,
+                                    child: Row(children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                        decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(20)),
+                                        child: Text(statusText,
+                                            style: const TextStyle(color: Colors.white, fontSize: 12)),
                                       ),
-                                      const SizedBox(width: 8),
-                                    ],
-
-                                    if (rawStatus != 'cancelled' && rawStatus != 'completed') ...[
-                                      InkWell(
-                                        onTap: () => _confirmCancel(item),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4), 
-                                          decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)), 
-                                          child: const Icon(Icons.close, size: 16, color: Colors.white)
+                                      const SizedBox(width: 10),
+                                      if (rawStatus != 'cancelled' && rawStatus != 'completed' && rawStatus != 'arrived') ...[
+                                        InkWell(
+                                          onTap: () => _openEditDialog(item),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(border: Border.all(color: Colors.black87), borderRadius: BorderRadius.circular(4)),
+                                            child: const Icon(Icons.edit, size: 16, color: Colors.black87),
+                                          ),
                                         ),
-                                      )
-                                    ]
-                                  ],
-                                ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      if (rawStatus != 'cancelled' && rawStatus != 'completed') ...[
+                                        InkWell(
+                                          onTap: () => _confirmCancel(item),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
+                                            child: const Icon(Icons.close, size: 16, color: Colors.white),
+                                          ),
+                                        ),
+                                      ],
+                                    ]),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        );
-                      }
-                    )
-            )
-          ]
-        )
-      )
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
