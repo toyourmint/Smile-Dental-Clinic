@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_application_1/screen/daily/daily_table.dart';
 import 'package:flutter_application_1/screen/daily/queue_manage.dart';
+import 'package:flutter_application_1/screen/auth_service.dart';
 
 class DailyQueueScreen extends StatefulWidget {
   const DailyQueueScreen({super.key});
@@ -35,7 +36,18 @@ class _DailyQueueScreenState extends State<DailyQueueScreen> {
   Future<void> _fetchQueues() async {
     setState(() => isLoading = true);
     try {
-      final response = await http.get(Uri.parse('http://localhost:3000/api/queue/all?date=$apiDate'));
+      String? myToken = await AuthService.getValidToken();
+      if (myToken == null) {
+        if (mounted) AuthService.logout(context);
+        return;
+      }
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/api/queue/all?date=$apiDate'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $myToken',
+        },
+      );
       if (!mounted) return;
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -140,9 +152,17 @@ class _DailyQueueScreenState extends State<DailyQueueScreen> {
     }
 
     try {
+      String? myToken = await AuthService.getValidToken();
+      if (myToken == null) {
+        if (mounted) AuthService.logout(context);
+        return;
+      }
       final response = await http.post(
         Uri.parse('http://localhost:3000/api/queue/generate'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $myToken',
+        },
         body: jsonEncode({
           "appointment_id": patient['appointment_id'],
           "user_id": patient['user_id'] ?? 0,
@@ -165,10 +185,18 @@ class _DailyQueueScreenState extends State<DailyQueueScreen> {
 
   void _processQueue(String roomName, {required bool isSkip}) async {
     try {
+      String? myToken = await AuthService.getValidToken();
+      if (myToken == null) {
+        if (mounted) AuthService.logout(context);
+        return;
+      }
       final endpoint = isSkip ? 'skip' : 'next';
       final url = Uri.parse('http://localhost:3000/api/queue/$endpoint?room=$roomName');
-      
-      http.Response response = isSkip ? await http.post(url) : await http.get(url);
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $myToken',
+      };
+      http.Response response = isSkip ? await http.post(url, headers: headers) : await http.get(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

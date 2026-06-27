@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/screen/auth_service.dart';
 
 class EditAppointmentDialog extends StatefulWidget {
   final Map<String, dynamic> initialData;
@@ -100,7 +101,14 @@ class _EditAppointmentDialogState extends State<EditAppointmentDialog> {
 
   Future<void> _fetchDoctors() async {
     try {
-      final response = await http.get(Uri.parse('http://localhost:3000/api/user/doctor'));
+      String? myToken = await AuthService.getValidToken();
+      if (myToken == null) {
+        if (mounted) AuthService.logout(context);
+        return;
+      }
+      final response = await http.get(Uri.parse('http://localhost:3000/api/user/doctor'), headers: { 'Content-Type': 'application/json',
+        'Authorization': 'Bearer $myToken'
+      });
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List<dynamic> doctorList = data['doctors'] ?? [];
@@ -125,12 +133,15 @@ class _EditAppointmentDialogState extends State<EditAppointmentDialog> {
   Future<void> _fetchAvailableSlots(String dateYMD) async {
     setState(() => _isLoadingSlots = true);
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? myToken = prefs.getString('my_token');
+      String? myToken = await AuthService.getValidToken();
+      if (myToken == null) {
+        if (mounted) AuthService.logout(context);
+        return;
+      }
 
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/apm/slots?date=$dateYMD'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${myToken ?? ""}'}
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $myToken'}
       );
 
       if (response.statusCode == 200) {
@@ -180,16 +191,19 @@ class _EditAppointmentDialogState extends State<EditAppointmentDialog> {
 
     setState(() => _isSaving = true);
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? myToken = prefs.getString('my_token');
-      
+      String? myToken = await AuthService.getValidToken();
+      if (myToken == null) {
+        if (mounted) AuthService.logout(context);
+        return;
+      }
+
       final aptId = widget.initialData['apt_id'];
 
       final response = await http.put(
         Uri.parse('http://localhost:3000/api/apm/edit/$aptId'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${myToken ?? ""}', 
+          'Authorization': 'Bearer $myToken', 
         },
         body: jsonEncode({
           "doctor_name": _selectedDoctor ?? "-",

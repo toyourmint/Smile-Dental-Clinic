@@ -5,13 +5,13 @@ const apmController = require('../controller/apmController');
 const verify = require('../middlewares/authMiddleware');
 
 router.post('/apmUser', verify, apmController.bookAppointmentByUser);
-router.post('/apmAdmin', apmController.bookAppointmentByAdmin);
-router.get('/slots', apmController.getAvailableSlots);
+router.post('/apmAdmin', verify, apmController.bookAppointmentByAdmin);
+router.get('/slots', verify, apmController.getAvailableSlots);
 
-router.get('/all', apmController.getAllAppointments);
-router.put('/cancel/:id', apmController.cancelAppointment);
-router.put('/reschedule/:id', apmController.rescheduleAppointment);
-router.put('/edit/:id', apmController.editAppointment);
+router.get('/all', verify, apmController.getAllAppointments);
+router.put('/cancel/:id', verify, apmController.cancelAppointment);
+router.put('/reschedule/:id', verify, apmController.rescheduleAppointment);
+router.put('/edit/:id', verify, apmController.editAppointment);
 router.get('/my', verify, apmController.getMyAppointments);
 
 module.exports = router;

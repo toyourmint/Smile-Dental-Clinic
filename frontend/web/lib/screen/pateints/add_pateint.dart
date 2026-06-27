@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_application_1/screen/data/data_store.dart';
+import 'package:flutter_application_1/screen/auth_service.dart';
 
 /// =========================
 /// ENUMS & EXTENSIONS
@@ -231,18 +232,24 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
   setState(() => _isLoading = true);
 
   try {
+    String? myToken = await AuthService.getValidToken();
+    if (myToken == null) {
+      if (mounted) AuthService.logout(context);
+      return;
+    }
     http.Response response;
 
     if (widget.existingPatient != null) {
       // ✅ โหมดแก้ไข — PUT พร้อม userId จริงจากฐานข้อมูล
       final userId = widget.existingPatient!.userId;
-      print('>>> DEBUG userId = "$userId"');
       final url = Uri.parse('http://localhost:3000/api/user/editprofile/$userId');
-      print('>>> URL = $url');
 
       response = await http.put(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $myToken',
+        },
         body: jsonEncode({
           "hn": widget.existingPatient!.patientId,
           "citizen_id": _idCardCtrl.text.trim(),
@@ -270,7 +277,10 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
 
       response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $myToken',
+        },
         body: jsonEncode({
           "citizen_id": _idCardCtrl.text.trim(),
           "title": title ?? "",

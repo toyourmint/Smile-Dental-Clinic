@@ -4,6 +4,7 @@ import 'package:flutter_application_1/screen/appomitment/appointment.dart';
 import 'package:flutter_application_1/screen/daily/daily_queue.dart';
 import 'package:flutter_application_1/screen/pateints/pateints_table.dart';
 import 'package:flutter_application_1/screen/login_web.dart';
+import 'package:flutter_application_1/screen/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -119,20 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 15),
                       OutlinedButton.icon(
-                        onPressed: () async {
-                          SharedPreferences prefs = await SharedPreferences.getInstance();
-                          // ลบเฉพาะ session ไม่ลบ saved_email และ remember_email
-                          await prefs.remove('my_token');
-                          await prefs.remove('user_role');
-                          await prefs.remove('user_id');
-                          await prefs.remove('user_name');
-
-                          if (!mounted) return;
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          );
-                        },
+                        onPressed: () => AuthService.logout(context),
                         icon: const Icon(Icons.logout, size: 16),
                         label: const Text("ออกจากระบบ"),
                         style: OutlinedButton.styleFrom(

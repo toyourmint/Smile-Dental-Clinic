@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_application_1/screen/pateints/add_pateint.dart';
 import 'package:flutter_application_1/screen/data/data_store.dart';
 import 'package:flutter_application_1/screen/data/table_styles.dart'; // ← เพิ่ม import
+import 'package:flutter_application_1/screen/auth_service.dart';
 
 class PatientsScreen extends StatefulWidget {
   const PatientsScreen({super.key});
@@ -34,7 +35,19 @@ class _PatientsScreenState extends State<PatientsScreen> {
   Future<void> _fetchPatients() async {
     setState(() => _isLoading = true);
     try {
-      final response = await http.get(Uri.parse('http://localhost:3000/api/user/getallprofiles'));
+      String? myToken = await AuthService.getValidToken();
+      if (myToken == null) {
+        if (mounted) AuthService.logout(context);
+        return;
+      }
+      
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/api/user/getallprofiles'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $myToken',
+        },
+      );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
@@ -73,14 +86,11 @@ class _PatientsScreenState extends State<PatientsScreen> {
           }).toList();
         });
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('ดึงข้อมูลล้มเหลว (Status: ${response.statusCode})'),
-            backgroundColor: Colors.red));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ดึงข้อมูลล้มเหลว (Status: ${response.statusCode})'),backgroundColor: Colors.red));
       }
     } catch (e) {
       print("Fetch Error: $e");
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ดึงข้อมูลไม่ได้: $e'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ดึงข้อมูลไม่ได้: $e'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

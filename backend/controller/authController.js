@@ -5,6 +5,8 @@ const pool = require('../config/db');
 const mysql = require('mysql2/promise');
 const nodemailer = require('nodemailer');
 
+const { add } = require('../middlewares/tokenBlacklist');
+
 // let mockOtpDB = {};
 
 // ================= DB CONNECTION (สำคัญที่สุด) =================
@@ -398,6 +400,12 @@ exports.loginAdmin = async (req, res) => {
     console.error('Login Error:', error);
     res.status(500).json({ message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
   }
+};
+
+exports.logout = (req, res) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (token) add(token);
+  res.json({ message: 'Logout สำเร็จ' });
 };
 
 // =================================================

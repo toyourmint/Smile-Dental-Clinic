@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/screen/appomitment/edit_appointment.dart';
 import 'package:flutter_application_1/screen/appomitment/add_appointment.dart';
 import 'package:flutter_application_1/screen/data/table_styles.dart'; // ← เพิ่ม import
+import 'package:flutter_application_1/screen/auth_service.dart';
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({super.key});
@@ -37,14 +37,17 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   Future<void> _fetchAppointments() async {
     setState(() => _isLoading = true);
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? myToken = prefs.getString('my_token');
+      String? myToken = await AuthService.getValidToken();
+      if (myToken == null) {
+        if (mounted) AuthService.logout(context);
+        return;
+      }
 
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/apm/all'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${myToken ?? ""}',
+          'Authorization': 'Bearer $myToken',
         },
       );
 
@@ -52,18 +55,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         final data = jsonDecode(response.body);
         if (mounted) setState(() { _appointments = data['appointments'] ?? []; });
       } else if (response.statusCode == 401 || response.statusCode == 403) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("ไม่มีสิทธิ์เข้าถึง หรือเซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่"),
-            backgroundColor: Colors.orange));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ไม่มีสิทธิ์เข้าถึง หรือเซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่"),backgroundColor: Colors.orange));
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("ดึงข้อมูลล้มเหลว (${response.statusCode})"),
-            backgroundColor: Colors.red));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("ดึงข้อมูลล้มเหลว (${response.statusCode})"),backgroundColor: Colors.red));
       }
     } catch (e) {
       debugPrint("Error fetching appointments: $e");
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -118,23 +116,24 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               onPressed: () async {
                 Navigator.pop(context);
                 try {
-                  SharedPreferences prefs = await SharedPreferences.getInstance();
-                  String? myToken = prefs.getString('my_token');
+                  String? myToken = await AuthService.getValidToken();
+                  if (myToken == null) {
+                    if (mounted) AuthService.logout(context);
+                    return;
+                  }
+                  
                   final response = await http.put(
                     Uri.parse('http://localhost:3000/api/apm/cancel/${item['apt_id']}'),
-                    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${myToken ?? ""}'},
+                    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $myToken'},
                   );
                   if (response.statusCode == 200) {
                     _fetchAppointments();
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("ยกเลิกสำเร็จ"), backgroundColor: Colors.green));
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ยกเลิกสำเร็จ"), backgroundColor: Colors.green));
                   } else {
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("ยกเลิกไม่สำเร็จ"), backgroundColor: Colors.red));
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ยกเลิกไม่สำเร็จ"), backgroundColor: Colors.red));
                   }
                 } catch (e) {
-                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("เกิดข้อผิดพลาดในการเชื่อมต่อ"), backgroundColor: Colors.red));
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("เกิดข้อผิดพลาดในการเชื่อมต่อ"), backgroundColor: Colors.red));
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
