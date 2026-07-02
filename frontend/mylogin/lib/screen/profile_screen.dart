@@ -31,7 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   /// 🔹 API
   //////////////////////////////////////////////////////
   Future<void> fetchUser() async {
-    final url = Uri.parse("http://10.0.2.2:3000/api/user/getprofiles");
+    final url = Uri.parse("http://172.20.10.6:3000/api/user/getprofiles");
 
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();

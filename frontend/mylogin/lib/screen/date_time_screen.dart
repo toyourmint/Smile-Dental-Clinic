@@ -80,6 +80,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
     final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
     final time = "$_selectedTime:00";
 
+    final cleanReason = widget.serviceName.replaceAll('\n', '');
     bool success = false;
 
     try {
@@ -93,7 +94,7 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
         success = await AppointmentService.bookAppointment(
           date: date,
           time: time,
-          reason: widget.serviceName,
+          reason: cleanReason,
         );
       }
 

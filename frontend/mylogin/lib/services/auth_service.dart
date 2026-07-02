@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class AuthService {
   /// Android Emulator → 10.0.2.2
-  static const String baseUrl = 'http://10.0.2.2:3000/api/auth';
+  static const String baseUrl = 'http://172.20.10.6:3000/api/auth';
 
   static const _headers = {
     'Content-Type': 'application/json',
