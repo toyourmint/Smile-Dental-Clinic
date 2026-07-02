@@ -291,6 +291,12 @@ exports.login = async (req, res) => {
       });
     }
 
+    if (user.role !== 'user') {
+      return res.status(403).json({
+        message: 'คุณไม่มีสิทธิ์เข้าถึงระบบนี้ (สำหรับผู้ใช้เท่านั้น)'
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -300,6 +306,7 @@ exports.login = async (req, res) => {
     // ✅ สร้าง token
     const token = jwt.sign(
       {
+        id: user.id,
         userId: user.id,
         role: user.role,
         first_name: user.first_name
@@ -376,6 +383,7 @@ exports.loginAdmin = async (req, res) => {
     // ✅ สร้าง token
     const token = jwt.sign(
       {
+        id: user.id,
         userId: user.id,
         role: user.role,
         first_name: user.first_name
