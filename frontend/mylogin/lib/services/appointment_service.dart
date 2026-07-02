@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../screen/appointment_modal.dart';
 
 class AppointmentService {
-  static const String baseUrl = "http://10.0.2.2:3000";
+  static const String baseUrl = "http://172.20.10.6:3000";
 
   /// 🔐 helper ดึง token + header
   static Future<Map<String, String>> _authHeader() async {

@@ -19,7 +19,7 @@ class Doctor {
 }
 
 class DoctorService {
-  static const String url = "http://10.0.2.2:3000/api/user/doctor";
+  static const String url = "http://172.20.10.6:3000/api/user/doctor";
 
   static Future<List<Doctor>> fetchDoctors() async {
     final response = await http.get(Uri.parse(url));
